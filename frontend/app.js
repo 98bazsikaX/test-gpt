@@ -1,6 +1,28 @@
 /* microgpt — főoldal (név-kiegészítés + újratanítás + élő vizualizációk) */
-const lossLayout = { title: 'Élő loss', xaxis: { title: 'lépés' }, yaxis: { title: 'loss' }, template: 'plotly_white', height: 320 };
-const pcaLayout = { title: 'Karakter-embeddingek PCA-ja (élő)', xaxis: { title: '1. főkomponens' }, yaxis: { title: '2. főkomponens' }, template: 'plotly_white', height: 320 };
+
+/* A plotok a "napfényes papír" témát követik */
+const chartTheme = {
+  paper_bgcolor: '#f6f0e4',
+  plot_bgcolor: '#fffdf8',
+  font: { family: 'system-ui, sans-serif', color: '#1c2433', size: 13 },
+  xaxis: { gridcolor: '#e8dfd0', zerolinecolor: '#e8dfd0' },
+  yaxis: { gridcolor: '#e8dfd0', zerolinecolor: '#e8dfd0' },
+};
+
+const lossLayout = {
+  title: 'Élő loss',
+  xaxis: { title: 'lépés' },
+  yaxis: { title: 'loss' },
+  height: 320,
+  ...chartTheme,
+};
+const pcaLayout = {
+  title: 'Karakter-embeddingek PCA-ja (élő)',
+  xaxis: { title: '1. főkomponens' },
+  yaxis: { title: '2. főkomponens' },
+  height: 320,
+  ...chartTheme,
+};
 
 async function api(url, method, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
@@ -34,9 +56,25 @@ async function startTrain() {
     steps: +document.getElementById('f_steps').value,
   };
   const d = await api('/retrain', 'POST', cfg);
-  if (d.error) { document.getElementById('trainstatus').textContent = 'Hiba: ' + d.error; return; }
-  document.getElementById('trainstatus').textContent = 'Tanítás indul...';
+  if (d.error) { setStatus('hiba → ' + d.error); return; }
   pollLive();
+}
+
+/* A konzol-szignatúra sorának formázása:  step 0042/1000 | loss 2.4181 */
+function statusText(d) {
+  if (d.error) return 'hiba → ' + d.error;
+  if (d.running) {
+    const last = d.losses && d.losses.length ? d.losses[d.losses.length - 1].toFixed(4) : '—';
+    return 'step ' + String(d.step).padStart(4, '0') + '/' + d.total + ' | loss ' + last;
+  }
+  if (d.losses && d.losses.length) {
+    return 'kész · ' + d.total + ' lépés · utolsó loss ' + d.final_loss.toFixed(4);
+  }
+  return 'várakozás — indíts tanítást lentebb…';
+}
+
+function setStatus(text) {
+  document.getElementById('trainstatus').textContent = text;
 }
 
 let polling = false;
@@ -45,25 +83,19 @@ async function pollLive() {
   polling = true;
   try {
     const d = await api('/plot/live', 'GET');
-    const st = document.getElementById('trainstatus');
+    setStatus(statusText(d));
     if (d.losses && d.losses.length) {
       const x = Array.from({ length: d.losses.length }, (_, i) => i + 1);
-      Plotly.react('live_loss', [{ x, y: d.losses, mode: 'lines', name: 'loss' }], lossLayout);
+      Plotly.react('live_loss', [{ x, y: d.losses, mode: 'lines', name: 'loss', line: { color: '#2f6f68' } }], lossLayout);
     }
     if (d.pca && d.pca.length) {
       Plotly.react('live_pca', [{
         x: d.pca.map(p => p[0]), y: d.pca.map(p => p[1]),
         text: d.pca_labels, mode: 'markers+text', textposition: 'top center',
+        marker: { color: '#c07a12', size: 9 },
       }], pcaLayout);
     }
-    if (d.running) {
-      st.textContent = 'Tanulás... ' + d.step + '/' + d.total;
-      setTimeout(pollLive, 500);
-    } else if (d.error) {
-      st.textContent = 'Hiba: ' + d.error;
-    } else if (d.losses && d.losses.length) {
-      st.textContent = 'Kész! ' + d.total + ' lépés, utolsó loss: ' + d.final_loss.toFixed(4);
-    }
+    if (d.running) setTimeout(pollLive, 500);
   } finally { polling = false; }
 }
 

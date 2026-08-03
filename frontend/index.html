@@ -3,86 +3,108 @@
 <head>
 <meta charset="utf-8">
 <title>microgpt</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/plotly.min.js"></script>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>microgpt</h1>
+<div class="wrap">
 
-<h2>Név-kiegészítés</h2>
-<details class="help">
-  <summary>Hogyan működik a kiegészítés?</summary>
-  <p>
-    A modell minden lépésben megjósolja, mi a legvalószínűbb <strong>következő betű</strong>,
-    majd a jósolt eloszlásból mintavételez. Így a beírt előtagból (pl. „ka") egyre
-    tovább építi a nevet, amíg el nem éri a szöveg végét (a BOS tokent).
-  </p>
-  <p>
-    A <strong>temperature</strong> szabályozza a „kreativitást": alacsonyan
-    (pl. 0.1) a modell szinte mindig a legvalószínűbb betűt választja, magasan
-    (pl. 1+) bátrabban kockáztat — érdekesebb, de hibbantabb neveket kaphatsz.
-  </p>
-  <p>
-    <a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Mi az a nyelvi modell? (Wikipedia)</a>
-    &nbsp;·&nbsp;
-    <a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Softmax (Wikipedia)</a>
-  </p>
-</details>
-<div class="row">
-  <input id="seed" type="text" placeholder="pl. ka" autocomplete="off">
-  <button onclick="doComplete()">Kiegészítés</button>
-  <label>temperature
-    <input id="temp" type="range" min="0.05" max="2" step="0.05" value="0.5" oninput="setTemp()">
-    <span id="tempval">0.50</span>
-  </label>
+  <header class="hero">
+    <p class="eyebrow">a tiny GPT that learns names</p>
+    <h1>microgpt</h1>
+    <p class="tagline">
+      Írj be egy név-előtagot, nézd meg, ahogy a modell élőben tanul —
+      és kukkants be a fejébe.
+    </p>
+  </header>
+
+  <div class="console" id="console" aria-live="polite">
+    <span class="prompt">$</span> <span id="trainstatus">várakozás — indíts tanítást lentebb…</span><span class="cursor"></span>
+  </div>
+
+  <section class="card">
+    <p class="eyebrow">predict</p>
+    <h2>Név-kiegészítés</h2>
+    <details class="help">
+      <summary>Hogyan működik a kiegészítés?</summary>
+      <p>
+        A modell minden lépésben megjósolja, mi a legvalószínűbb <strong>következő betű</strong>,
+        majd a jósolt eloszlásból mintavételez. Így a beírt előtagból (pl. „ka") egyre
+        tovább építi a nevet, amíg el nem éri a szöveg végét (a BOS tokent).
+      </p>
+      <p>
+        A <strong>temperature</strong> szabályozza a „kreativitást": alacsonyan
+        (pl. 0.1) a modell szinte mindig a legvalószínűbb betűt választja, magasan
+        (pl. 1+) bátrabban kockáztat — érdekesebb, de hibbantabb neveket kaphatsz.
+      </p>
+      <p>
+        <a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Mi az a nyelvi modell? (Wikipedia)</a>
+        &nbsp;·&nbsp;
+        <a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Softmax (Wikipedia)</a>
+      </p>
+    </details>
+    <div class="row">
+      <input id="seed" type="text" placeholder="pl. ka" autocomplete="off">
+      <button onclick="doComplete()">Kiegészítés</button>
+      <label>temperature
+        <input id="temp" type="range" min="0.05" max="2" step="0.05" value="0.5" oninput="setTemp()">
+        <span id="tempval">0.50</span>
+      </label>
+    </div>
+    <ul id="out"></ul>
+    <p id="err"></p>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">train</p>
+    <h2>Újratanítás</h2>
+    <div class="row">
+      <label>rétegek <input id="f_layers" type="number" min="1" max="8"></label>
+      <label>embd <input id="f_embd" type="number" min="4" max="256"></label>
+      <label>fejek <input id="f_heads" type="number" min="1" max="16"></label>
+      <label>block <input id="f_block" type="number" min="2" max="64"></label>
+      <label>steps <input id="f_steps" type="number" min="10" max="200000"></label>
+      <button onclick="startTrain()">Tanítás</button>
+    </div>
+
+    <details class="help">
+      <summary>Mit mutat az élő loss-görbe?</summary>
+      <p>
+        A <strong>loss</strong> (cross-entropia) a modell átlagos hibája: minél kisebb,
+        annál jobban tanult. A tanítás alatt <strong>élőben</strong> nézheted, ahogy
+        csökken. Ha ugrál, az normális — a modell egyesével, sorrendben tanul be
+        neveket, így egy-egy nehéz név átmenetileg megdobja a hibát.
+      </p>
+      <p>
+        <a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (Wikipedia)</a>
+        &nbsp;·&nbsp;
+        <a href="https://en.wikipedia.org/wiki/Gradient_descent" target="_blank">Hogyan tanul a háló? (Wikipedia)</a>
+      </p>
+    </details>
+    <div id="live_loss" class="chart"></div>
+
+    <details class="help">
+      <summary>Mit mutat az élő embedding-PCA?</summary>
+      <p>
+        A modell minden betűnek egy <strong>jelentésvektort</strong> (embeddint) tanul.
+        A <strong>PCA</strong> ezt vetíti 2 dimenzióba, hogy meglásd, ahogy a tanulás
+        során a betűk „helyet keresnek maguknak". Eleinte véletlenszerűen szóródnak;
+        tanulás után jellegzetes csoportokat alakítanak ki (pl. magánhangzók és
+        mássalhangzók elkülönülnek).
+      </p>
+      <p>
+        <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a>
+        &nbsp;·&nbsp;
+        <a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a>
+      </p>
+    </details>
+    <div id="live_pca" class="chart"></div>
+  </section>
+
+  <p class="nav"><a href="/viz">Vizualizációk galéria &rarr;</a></p>
+
 </div>
-<ul id="out"></ul>
-<p id="err"></p>
-
-<h2>Újratanítás</h2>
-<div class="row">
-  <label>rétegek <input id="f_layers" type="number" min="1" max="8"></label>
-  <label>embd <input id="f_embd" type="number" min="4" max="256"></label>
-  <label>fejek <input id="f_heads" type="number" min="1" max="16"></label>
-  <label>block <input id="f_block" type="number" min="2" max="64"></label>
-  <label>steps <input id="f_steps" type="number" min="10" max="200000"></label>
-  <button onclick="startTrain()">Tanítás</button>
-</div>
-<p id="trainstatus"></p>
-<details class="help">
-  <summary>Mit mutat az élő loss-görbe?</summary>
-  <p>
-    A <strong>loss</strong> (cross-entropia) a modell átlagos hibája: minél kisebb,
-    annál jobban tanult. A tanítás alatt <strong>élőben</strong> nézheted, ahogy
-    csökken. Ha ugrál, az normális — a modell egyesével, sorrendben tanul be
-    neveket, így egy-egy nehéz név átmenetileg megdobja a hibát.
-  </p>
-  <p>
-    <a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (Wikipedia)</a>
-    &nbsp;·&nbsp;
-    <a href="https://en.wikipedia.org/wiki/Gradient_descent" target="_blank">Hogyan tanul a háló? (Wikipedia)</a>
-  </p>
-</details>
-<div id="live_loss" class="chart"></div>
-<details class="help">
-  <summary>Mit mutat az élő embedding-PCA?</summary>
-  <p>
-    A modell minden betűnek egy <strong>jelentésvektort</strong> (embeddint) tanul.
-    A <strong>PCA</strong> ezt vetíti 2 dimenzióba, hogy meglásd, ahogy a tanulás
-    során a betűk „helyet keresnek maguknak". Eleinte véletlenszerűen szóródnak;
-    tanulás után jellegzetes csoportokat alakítanak ki (pl. magánhangzók és
-    mássalhangzók elkülönülnek).
-  </p>
-  <p>
-    <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a>
-    &nbsp;·&nbsp;
-    <a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a>
-  </p>
-</details>
-<div id="live_pca" class="chart"></div>
-
-<p><a href="/viz">Vizualizációk galéria &rarr;</a></p>
-
 <script src="/app.js"></script>
 </body>
 </html>
