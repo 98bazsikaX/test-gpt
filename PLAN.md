@@ -13,6 +13,8 @@ A `my-little-jpa` mintájára készült monorepo-terv: a projekt **backend/** (P
 - [x] Monorepo: `backend/` + `frontend/`, helyi futtatás a backendből
 - [x] Docker: `backend/Dockerfile` (uvicorn) + `frontend/Dockerfile` (nginx) + `docker-compose.yml`
 - [x] README, LICENSE (MIT), `.editorconfig`, `.opencode/AGENTS.md` (ágens-memória)
+- [x] CI: GitHub Actions — `uv run pytest` (3.12/3.13) + `ruff` minden push/PR-re,
+      GHCR image-build `main` push után
 
 ## Következő lépések (🚧 tervezett)
 
@@ -20,7 +22,6 @@ A `my-little-jpa` mintájára készült monorepo-terv: a projekt **backend/** (P
 - [ ] HuggingFace-token helyett opcionális súly-export (safetensors/pytorch) a
       tanult modellhez
 - [ ] A `frontend` egyedi favicon és jobb responszív elrendezés
-- [ ] CI: GitHub Actions — `uv run pytest` + `ruff` minden push-ra
 - [ ] A `complete_name.py` cache-elése (most minden futáskor újratanít)
 
 ## Mérföldkövek
@@ -30,4 +31,5 @@ A `my-little-jpa` mintájára készült monorepo-terv: a projekt **backend/** (P
 | M0 | Modell mag + referencia-tesztek | ✅ |
 | M1 | Webes felület + vizualizációk | ✅ |
 | M2 | Monorepo + Docker | ✅ |
-| M3 | Perzisztencia + CI | 🚧 |
+| M3 | Perzisztencia | 🚧 |
+| M4 | CI (ruff + pytest + GHCR) | ✅ |

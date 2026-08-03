@@ -34,6 +34,14 @@ cseréli, és böngészős felületet kap. Monorepo: `backend/` (Python) + `fron
 - Új függőség: `uv add <csomag>` (dev: `uv add --dev <csomag>`)
 - Docker: a repó gyökeréből `docker compose up --build`
 
+## Munkaflow (fontos!)
+
+- **Soha ne commitolj közvetlenül `main`-re.** Minden változtatás **feature
+  branch-en** készül (pl. `feat/xyz` vagy `ci/xyz`), majd **PR** megy a `main`-re.
+- A CI (`/pr` futtatás) a PR-en fut: `ruff` + `pytest` (3.12/3.13). A GHCR
+  image-build csak `main` push után fut.
+- PR előtt futtasd lokálisan: `cd backend && uv run ruff check . && uv run pytest -q`.
+
 ## Konvenciók és fontos részletek
 
 - **A kód-dokumentáció és a kommentek MAGYARUL vannak** (változónevek angolul).

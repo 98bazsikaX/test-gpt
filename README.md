@@ -1,5 +1,7 @@
 # microgpt
 
+![CI](https://github.com/98bazsikaX/test-gpt/actions/workflows/ci.yml/badge.svg)
+
 Egy **GPT a legapróbb, oktató jellegű formájában** — tiszta Python + numpy, sémény
 keretrendszer nélkül. A modell azt tanulja meg, hogyan néznek ki a keresztnevek,
 majd képes új neveket generálni, illetve megadott név-előtagokat kiegészíteni.
