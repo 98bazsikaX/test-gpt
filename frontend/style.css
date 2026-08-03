@@ -12,3 +12,15 @@ li { font-size: 20px; padding: 5px 0; border-bottom: 1px solid #eee; }
 label { font-size: 14px; }
 a { color: #06c; }
 .chart { min-height: 330px; }
+
+/* Oktató magyarázatok (details blokkok) */
+details.help { background: #f4f7fb; border: 1px solid #d5dee8; border-radius: 6px; padding: 8px 12px; margin: 8px 0 12px; }
+details.help summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+details.help p { margin: 8px 0; font-size: 14px; line-height: 1.55; }
+details.help ul { margin: 6px 0 6px 18px; font-size: 14px; line-height: 1.55; }
+details.help a { color: #06c; text-decoration: none; }
+details.help a:hover { text-decoration: underline; }
+.glossary { background: #f8f5ee; border: 1px solid #e4dcc8; border-radius: 6px; padding: 10px 14px; margin: 10px 0 18px; font-size: 14px; }
+.glossary h3 { margin: 0 0 6px; font-size: 15px; }
+.glossary a { color: #06c; text-decoration: none; }
+.glossary a:hover { text-decoration: underline; }
