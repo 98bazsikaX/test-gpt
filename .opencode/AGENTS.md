@@ -33,6 +33,7 @@ cseréli, és böngészős felületet kap. Monorepo: `backend/` (Python) + `fron
 - Lint: `uv run ruff check .`
 - Új függőség: `uv add <csomag>` (dev: `uv add --dev <csomag>`)
 - Docker: a repó gyökeréből `docker compose up --build`
+- **GPU-s gépen:** `uv sync --extra gpu` (CuPy; CPU-n/CI-n a sima `uv sync` numpy-fallbackot ad)
 
 ## Munkaflow (fontos!)
 
@@ -58,6 +59,16 @@ cseréli, és böngészős felületet kap. Monorepo: `backend/` (Python) + `fron
 - A frontend fájlok a `frontend/` mappában vannak; a backend `../frontend`-ből
   olvassa őket. Dockerben a frontend-konténer (nginx) adja ki őket, és az
   API-t proxy-zza a backendre (`nginx.conf`).
+- **GPU/CuPy:** a mag `np`-je cupy vagy numpy aszerint, hogy elérhető-e CUDA
+  (`microgpt.BACKEND` = 'gpu'|'cpu'). Létezik `microgpt.set_backend('cpu'|'gpu')`
+  és `microgpt._to_cpu(x)`. A tesztek a `conftest.py` autouse-fixture-jével
+  **mindig CPU-n** futnak — ne függj a GPU-tól.
+- **Cache-portabilitás:** a `model.pkl` mindig CPU-numpy formátumú (a
+  `name_ui._save_cache` `_to_cpu`-val ment), a `load_weights` az aktív
+  backendre konvertál.
+- **A `viz` és az UI CPU-hídat használ** (`viz._cpu`) — a plotly/PCA CPU-t
+  igényel, a tanítás lehet GPU-n. A `generate()` `random.choice`-ja
+  `size=1`-gyel hívandó (a cupy nem támogatja a size nélküli formát).
 
 ## Ismert hibák / figyelmeztetések
 

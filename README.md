@@ -98,7 +98,8 @@ microgpt/
 ```bash
 # 1. A függőségek telepítése (backend/.venv)
 cd backend
-uv sync
+uv sync                          # CPU-s gép / CI: numpy-fallback
+# uv sync --extra gpu            # NVIDIA GPU-s gépen: CuPy (lásd lent)
 
 # 2. Tesztek
 uv run pytest
@@ -109,6 +110,22 @@ uv run python name_ui.py
 
 Ha hiányzik a `backend/input.txt`, a `microgpt` modul **első importáláskor
 automatikusan letölti** Karpathy names.txt-jét (internet szükséges).
+
+### GPU-támogatás (CuPy)
+
+A modell **opcionálisan GPU-n tanul** (CuPy, numpy-kompatibilis):
+- **GPU-s gépen** (NVIDIA + CUDA): `cd backend && uv sync --extra gpu`. A modul
+  indításkor felismeri a CUDA-t, és a `microgpt.BACKEND` értéke `'gpu'` lesz —
+  a tréning a videókártyán fut, a kód (kézi forward/backward) változatlan.
+- **CPU-n / CI-n** (nincs cupy vagy CUDA): automatikusan numpy-fallback, a
+  tesztek mindig CPU-n futnak.
+- **Cache-portabilitás:** a `model.pkl` **mindig CPU-numpy** formátumban
+  mentődik, így bármely gépen betölthető (GPU nélkül is).
+- **UI/vizualizációk:** a Plotly-ábrák és a PCA CPU-s másolaton készülnek
+  (`viz._to_cpu`), a böngészőnek nem kell GPU.
+- Megjegyzés: a toy-modell apró, GPU-n a kernel-felhívási overhead miatt a
+  gyorsulás korlátozott — a GPU elsősorban a **nagyobb/lassabb tréninget**
+  engedi (az alapértelmezés is megnőtt: 6 réteg, 96 000 lépés).
 
 ---
 
@@ -226,11 +243,11 @@ ezért a tréning kb. 50-100x gyorsabb — a matematika viszont pontosan ugyanaz
 
 | Paraméter | Jelentés | Tipp |
 |---|---|---|
-| `n_layer` | Mélység. | Több réteg = elvontabb minták, de több lépés kell. |
+| `n_layer` | Mélység. | Alapértelmezés 6; több réteg = elvontabb minták, de több lépés kell. |
 | `n_embd` | Szélesség. | 16 a minimál; 32-64 ügyesebb, de lassabb. |
 | `n_head` | Fejek száma. | `n_embd % n_head == 0` kell. |
 | `block_size` | Kontextusablak. | A leghosszabb név 15 karakter, 16 elég. |
-| `steps` | Tanulási lépések. | Loss a lépésszámmal csökken; kezdésnek 1000-5000. |
+| `steps` | Tanulási lépések. | Alapértelmezés 96 000 (~3 epoch); a loss a lépésszámmal csökken (best ~1.15 a 6 rétegű modellnél). |
 | `temperature` | „Kreativitás". | 0.1 konzervatív, 0.5 jó egyensúly, 1+ kaotikusabb. |
 
 ---
@@ -252,7 +269,7 @@ a `/plot/loss` és `/plot/nlayer` 409-et adnak — a galéria automatikusan
 
 ```bash
 cd backend
-uv run pytest         # 15 teszt
+uv run pytest         # 20 teszt
 uv run ruff check .   # lint
 ```
 

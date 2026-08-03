@@ -110,12 +110,22 @@ def _moving_average(values, window=25):
     return smoothed
 
 
+def _cpu(x):
+    """Egy tömböt CPU-numpy-ra konvertál.
+
+    A tanítás futhat GPU-n (cupy), de a plotly és a numpy-API CPU-t igényel —
+    ezért a vizualizációk mindig CPU-másolaton dolgoznak.
+    """
+    return x.get() if hasattr(x, 'get') else x
+
+
 def _pca(rows, n_components=2):
     """PCA SVD-vel, numpy-ból — nincs szükség scikit-learnre.
 
     A középértéket levonjuk, majd az X @ V^T projekció adja az első
     `n_components` főkomponenst.
     """
+    rows = _cpu(rows)
     centered = rows - rows.mean(axis=0, keepdims=True)
     _, _, Vt = np.linalg.svd(centered, full_matrices=False)
     return centered @ Vt[:n_components].T
@@ -160,7 +170,7 @@ def nlayer_fig(steps=1500):
 # -----------------------------------------------------------------------------
 def pca_token_fig():
     """A 27 token-embedding (26 betű + BOS) 2D-s PCA-ja, feliratozva."""
-    embeddings = microgpt.state_dict['token_embedding']  # (vocab_size, n_embd)
+    embeddings = _cpu(microgpt.state_dict['token_embedding'])  # (vocab_size, n_embd)
     labels = uchars + ['BOS']
     proj = _pca(embeddings)
     fig = go.Figure(go.Scatter(
@@ -176,7 +186,7 @@ def pca_token_fig():
 
 def pca_position_fig():
     """A 16 pozíció-embedding 2D-s PCA-ja, pozíciószámokkal feliratozva."""
-    embeddings = microgpt.state_dict['position_embedding']  # (block_size, n_embd)
+    embeddings = _cpu(microgpt.state_dict['position_embedding'])  # (block_size, n_embd)
     proj = _pca(embeddings)
     fig = go.Figure(go.Scatter(
         x=proj[:, 0], y=proj[:, 1], mode='markers+text',
@@ -210,7 +220,7 @@ def attention_fig(name, layer=0):
 
     tokens = [BOS] + [stoi[c] for c in name]
     _, cache = microgpt.forward(tokens)
-    weights = cache['blocks'][layer]['attention_weights']  # (n_head, T, T)
+    weights = _cpu(cache['blocks'][layer]['attention_weights'])  # (n_head, T, T)
 
     labels = ['BOS'] + list(name)
     heads = microgpt.n_head
@@ -246,7 +256,7 @@ def distribution_fig(prefix):
 
     tokens = [BOS] + [stoi[c] for c in prefix]
     logits, _ = microgpt.forward(tokens)
-    probs = softmax(logits[-1])  # a következő token valószínűségei
+    probs = _cpu(softmax(logits[-1]))  # a következő token valószínűségei
 
     fig = go.Figure(go.Bar(x=uchars, y=probs, marker=dict(color='#2ca02c')))
     fig.update_layout(title=f'Következő betű eloszlása „{prefix}” után',

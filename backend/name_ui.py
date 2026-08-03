@@ -56,13 +56,17 @@ PLOTLY_JS = os.path.join(os.path.dirname(plotly.__file__), "package_data", "plot
 # A betanított modell cache-kezelése
 # -----------------------------------------------------------------------------
 def _save_cache():
-    """Elmenti a modellt és a hozzá tartozó konfigurációt a `model.pkl`-be."""
+    """Elmenti a modellt és a hozzá tartozó konfigurációt a `model.pkl`-be.
+
+    A súlyokat MINDIG CPU-numpy formátumba mentjük, hogy a cache GPU nélkül
+    is betölthető legyen (a load_weights majd az aktív backendre konvertál).
+    """
     data = {
         'n_layer': microgpt.n_layer,
         'n_embd': microgpt.n_embd,
         'n_head': microgpt.n_head,
         'block_size': microgpt.block_size,
-        'state_dict': microgpt.state_dict,
+        'state_dict': {k: microgpt._to_cpu(v) for k, v in microgpt.state_dict.items()},
     }
     with open(CACHE_FILE, 'wb') as f:
         pickle.dump(data, f)
@@ -173,11 +177,11 @@ class TemperatureRequest(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    n_layer: int = 4
+    n_layer: int = 6
     n_embd: int = 16
     n_head: int = 4
     block_size: int = 16
-    steps: int = 32000
+    steps: int = 96000
 
 
 # -----------------------------------------------------------------------------

@@ -5,6 +5,15 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    # GPU-átadás (opcionális, nvidia-container-toolkit szükséges):
+    #   ha a gépen van NVIDIA GPU és CUDA, távolítsd el a kommentet:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
   frontend:
     build: ./frontend
