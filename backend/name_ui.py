@@ -1,6 +1,6 @@
 """
 =============================================================================
- microgpt webes felület (FastAPI)
+ microgpt webes felület (FastAPI) — a "backend" része
 =============================================================================
 
 Böngészős felület a microgpt modellhez:
@@ -11,7 +11,13 @@ Böngészős felület a microgpt modellhez:
   - vizualizáció-galería (`/viz`): rétegszám-összehasonlítás, PCA,
     attention hőtérképek, következő-betű eloszlás.
 
-Futtatás:  uv run python name_ui.py
+A felület HTML/JS/CSS fájljai a `../frontend/` mappában vannak (monorepo
+elrendezés, a my-little-jpa mintájára). Helyi futtatáskor ez a backend
+szolgálja ki; docker-ben a frontend konténer (nginx) adja ki őket, és a
+API-kéréseket proxy-zza a backendre.
+
+Helyi futtatás:  cd backend && uv run python name_ui.py
+Docker:          docker compose up (ld. README)
 """
 
 import json
@@ -25,7 +31,7 @@ import webbrowser
 import plotly
 import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 import microgpt
@@ -37,6 +43,9 @@ import viz
 TEMPERATURE = 0.5   # a mintavételezés "kreativitása" (0.01..5)
 N_COMPLETIONS = 5   # hány kiegészítést adjon a /complete
 CACHE_FILE = "model.pkl"
+
+# A frontend (HTML/JS/CSS) a monorepo frontend/ mappájában lakik
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
 # A plotly.js-t a telepített plotly csomagból szolgáljuk ki helyben, így a
 # böngészőbeli ábrák CDN és internet nélkül is megjelennek.
@@ -171,12 +180,54 @@ class TrainRequest(BaseModel):
     steps: int = 32000
 
 
-@app.get('/', response_class=HTMLResponse)
+# -----------------------------------------------------------------------------
+# Frontend (statikus fájlok a frontend/ mappából)
+# -----------------------------------------------------------------------------
+def _frontend_file(name: str):
+    """Egy frontend fájlt szolgál ki; 404, ha nem található (pl. docker-ben a
+    frontend konténer adja ki)."""
+    path = os.path.join(FRONTEND_DIR, name)
+    if os.path.exists(path):
+        return FileResponse(path)
+    return JSONResponse({'error': f'hiányzó frontend fájl: {name}'}, status_code=404)
+
+
+@app.get('/')
 def index():
-    """A főoldal: kiegészítés + tanítás + élő vizualizációk."""
-    return HTMLResponse(PAGE)
+    """A főoldal (frontend/index.html)."""
+    return _frontend_file('index.html')
 
 
+@app.get('/viz')
+def viz_page():
+    """A vizualizáció-galería oldala (frontend/viz.html)."""
+    return _frontend_file('viz.html')
+
+
+@app.get('/app.js')
+def app_js():
+    return _frontend_file('app.js')
+
+
+@app.get('/viz.js')
+def viz_js():
+    return _frontend_file('viz.js')
+
+
+@app.get('/style.css')
+def style_css():
+    return _frontend_file('style.css')
+
+
+@app.get('/plotly.min.js')
+def plotly_js():
+    """A plotly.js helyi kiszolgálása (CDN/internet nélkül is megjelennek az ábrák)."""
+    return FileResponse(PLOTLY_JS, media_type='application/javascript')
+
+
+# -----------------------------------------------------------------------------
+# API
+# -----------------------------------------------------------------------------
 @app.post('/complete')
 def complete(request: CompleteRequest):
     """A megadott előtag kiegészítése `N_COMPLETIONS` névvel."""
@@ -307,232 +358,8 @@ def plot_distribution(prefix: str = 'ka'):
     return JSONResponse(json.loads(fig.to_json()))
 
 
-@app.get('/viz', response_class=HTMLResponse)
-def viz_page():
-    """A vizualizáció-galería oldala."""
-    return HTMLResponse(VIZ_PAGE)
-
-
-@app.get('/plotly.min.js')
-def plotly_js():
-    """A plotly.js helyi kiszolgálása (CDN/internet nélkül is megjelennek az ábrák)."""
-    return FileResponse(PLOTLY_JS, media_type='application/javascript')
-
-
 # -----------------------------------------------------------------------------
-# A főoldal HTML-je
-# -----------------------------------------------------------------------------
-PAGE = """<!doctype html>
-<html lang="hu">
-<head>
-<meta charset="utf-8">
-<title>microgpt</title>
-<script src="/plotly.min.js"></script>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #222; }
-  h1 { font-size: 24px; }
-  h2 { font-size: 18px; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-  input[type=text], input[type=number] { font-size: 15px; padding: 6px 8px; border: 1px solid #999; border-radius: 4px; }
-  input[type=range] { width: 180px; vertical-align: middle; }
-  button { font-size: 15px; padding: 7px 14px; border: 1px solid #999; border-radius: 4px; background: #eee; cursor: pointer; }
-  ul { list-style: none; padding: 0; }
-  li { font-size: 20px; padding: 5px 0; border-bottom: 1px solid #eee; }
-  #err, #trainstatus { color: #b00; font-size: 14px; }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
-  label { font-size: 14px; }
-  a { color: #06c; }
-  .chart { min-height: 330px; }
-</style>
-</head>
-<body>
-<h1>microgpt</h1>
-
-<h2>Név-kiegészítés</h2>
-<div class="row">
-  <input id="seed" type="text" placeholder="pl. ka" autocomplete="off">
-  <button onclick="doComplete()">Kiegészítés</button>
-  <label>temperature
-    <input id="temp" type="range" min="0.05" max="2" step="0.05" value="0.5" oninput="setTemp()">
-    <span id="tempval">0.50</span>
-  </label>
-</div>
-<ul id="out"></ul>
-<p id="err"></p>
-
-<h2>Újratanítás</h2>
-<div class="row">
-  <label>rétegek <input id="f_layers" type="number" min="1" max="8"></label>
-  <label>embd <input id="f_embd" type="number" min="4" max="256"></label>
-  <label>fejek <input id="f_heads" type="number" min="1" max="16"></label>
-  <label>block <input id="f_block" type="number" min="2" max="64"></label>
-  <label>steps <input id="f_steps" type="number" min="10" max="200000"></label>
-  <button onclick="startTrain()">Tanítás</button>
-</div>
-<p id="trainstatus"></p>
-<div id="live_loss" class="chart"></div>
-<div id="live_pca" class="chart"></div>
-
-<p><a href="/viz">Vizualizációk galéria &rarr;</a></p>
-
-<script>
-const lossLayout = { title: 'Élő loss', xaxis: {title:'lépés'}, yaxis: {title:'loss'}, template:'plotly_white', height: 320 };
-const pcaLayout  = { title: 'Karakter-embeddingek PCA-ja (élő)', xaxis:{title:'1. főkomponens'}, yaxis:{title:'2. főkomponens'}, template:'plotly_white', height: 320 };
-
-async function api(url, method, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  return res.json();
-}
-
-async function doComplete() {
-  const out = document.getElementById('out'); out.innerHTML = '';
-  const err = document.getElementById('err'); err.textContent = '';
-  const seed = document.getElementById('seed').value.trim();
-  if (!seed) return;
-  const d = await api('/complete', 'POST', { seed });
-  if (!d.results || !d.results.length) { err.textContent = 'Nincs érvényes betű (a-z).'; return; }
-  for (const n of d.results) { const li = document.createElement('li'); li.textContent = n; out.appendChild(li); }
-}
-
-async function setTemp() {
-  const t = parseFloat(document.getElementById('temp').value);
-  document.getElementById('tempval').textContent = t.toFixed(2);
-  await api('/temperature', 'POST', { value: t });
-}
-
-async function startTrain() {
-  const cfg = {
-    n_layer: +document.getElementById('f_layers').value,
-    n_embd: +document.getElementById('f_embd').value,
-    n_head: +document.getElementById('f_heads').value,
-    block_size: +document.getElementById('f_block').value,
-    steps: +document.getElementById('f_steps').value,
-  };
-  const d = await api('/retrain', 'POST', cfg);
-  if (d.error) { document.getElementById('trainstatus').textContent = 'Hiba: ' + d.error; return; }
-  document.getElementById('trainstatus').textContent = 'Tanítás indul...';
-  pollLive();
-}
-
-let polling = false;
-async function pollLive() {
-  if (polling) return;
-  polling = true;
-  try {
-    const d = await api('/plot/live', 'GET');
-    const st = document.getElementById('trainstatus');
-    if (d.losses && d.losses.length) {
-      const x = Array.from({ length: d.losses.length }, (_, i) => i + 1);
-      Plotly.react('live_loss', [{ x, y: d.losses, mode: 'lines', name: 'loss' }], lossLayout);
-    }
-    if (d.pca && d.pca.length) {
-      Plotly.react('live_pca', [{
-        x: d.pca.map(p => p[0]), y: d.pca.map(p => p[1]),
-        text: d.pca_labels, mode: 'markers+text', textposition: 'top center',
-      }], pcaLayout);
-    }
-    if (d.running) {
-      st.textContent = 'Tanulás... ' + d.step + '/' + d.total;
-      setTimeout(pollLive, 500);
-    } else if (d.error) {
-      st.textContent = 'Hiba: ' + d.error;
-    } else if (d.losses && d.losses.length) {
-      st.textContent = 'Kész! ' + d.total + ' lépés, utolsó loss: ' + d.final_loss.toFixed(4);
-    }
-  } finally { polling = false; }
-}
-
-async function loadConfig() {
-  const d = await api('/config', 'GET');
-  document.getElementById('f_layers').value = d.n_layer;
-  document.getElementById('f_embd').value = d.n_embd;
-  document.getElementById('f_heads').value = d.n_head;
-  document.getElementById('f_block').value = d.block_size;
-  document.getElementById('f_steps').value = d.steps;
-  document.getElementById('temp').value = d.temperature;
-  document.getElementById('tempval').textContent = d.temperature.toFixed(2);
-  if (d.training) pollLive();
-}
-
-document.getElementById('seed').addEventListener('keydown', e => { if (e.key === 'Enter') doComplete(); });
-loadConfig();
-pollLive();
-</script>
-</body>
-</html>
-"""
-
-
-# -----------------------------------------------------------------------------
-# A /viz galéria HTML-je
-# -----------------------------------------------------------------------------
-VIZ_PAGE = """<!doctype html>
-<html lang="hu">
-<head>
-<meta charset="utf-8">
-<title>microgpt vizualizációk</title>
-<script src="/plotly.min.js"></script>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; color: #222; }
-  h1 { font-size: 22px; }
-  h2 { font-size: 17px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-  input { font-size: 15px; padding: 6px 8px; border: 1px solid #999; border-radius: 4px; }
-  button { font-size: 15px; padding: 7px 14px; border: 1px solid #999; border-radius: 4px; background: #eee; cursor: pointer; }
-  .row { margin: 8px 0; }
-  .chart { min-height: 380px; }
-</style>
-</head>
-<body>
-<h1><a href="/">&larr; vissza</a> microgpt vizualizációk</h1>
-
-<h2>Rétegszám-összehasonlítás</h2>
-<div id="pnlayer" class="chart"></div>
-
-<h2>Pozíció-embeddingek PCA-ja</h2>
-<div id="ppca_pos" class="chart"></div>
-
-<h2>Attention hőtérkép</h2>
-<div class="row">
-  <input id="att_name" type="text" value="karla">
-  <button onclick="att()">Rajzol</button>
-</div>
-<div id="patt" class="chart"></div>
-
-<h2>Következő betű eloszlása</h2>
-<div class="row">
-  <input id="dist_prefix" type="text" value="ka">
-  <button onclick="dist()">Rajzol</button>
-</div>
-<div id="pdist" class="chart"></div>
-
-<script>
-async function loadPlot(url, id, tries) {
-  tries = tries || 0;
-  const res = await fetch(url);
-  if (res.status === 409 && tries < 30) {   // tréning fut -> várunk és újrapróbáljuk
-    setTimeout(() => loadPlot(url, id, tries + 1), 2000);
-    return;
-  }
-  const d = await res.json();
-  const el = document.getElementById(id);
-  if (d.error) { el.innerHTML = '<p style="color:#b00">' + d.error + '</p>'; return; }
-  Plotly.newPlot(el, d.data, d.layout, { responsive: true });
-}
-function att()  { loadPlot('/plot/attention?name=' + encodeURIComponent(document.getElementById('att_name').value), 'patt'); }
-function dist() { loadPlot('/plot/distribution?prefix=' + encodeURIComponent(document.getElementById('dist_prefix').value), 'pdist'); }
-loadPlot('/plot/nlayer', 'pnlayer');
-loadPlot('/plot/pca_pos', 'ppca_pos');
-att();
-dist();
-</script>
-</body>
-</html>
-"""
-
-
-# -----------------------------------------------------------------------------
-# Indítás: szabad port + böngésző megnyitása
+# Indítás (helyi): szabad port + böngésző megnyitása
 # -----------------------------------------------------------------------------
 def _pick_free_port() -> int:
     """Egy szabad (még lefoglalatlan) TCP portot kér az operációs rendszertől."""

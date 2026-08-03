@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>microgpt vizualizációk</title>
+<script src="/plotly.min.js"></script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<h1><a href="/">&larr; vissza</a> microgpt vizualizációk</h1>
+
+<h2>Rétegszám-összehasonlítás</h2>
+<div id="pnlayer" class="chart"></div>
+
+<h2>Pozíció-embeddingek PCA-ja</h2>
+<div id="ppca_pos" class="chart"></div>
+
+<h2>Attention hőtérkép</h2>
+<div class="row">
+  <input id="att_name" type="text" value="karla">
+  <button onclick="att()">Rajzol</button>
+</div>
+<div id="patt" class="chart"></div>
+
+<h2>Következő betű eloszlása</h2>
+<div class="row">
+  <input id="dist_prefix" type="text" value="ka">
+  <button onclick="dist()">Rajzol</button>
+</div>
+<div id="pdist" class="chart"></div>
+
+<script src="/viz.js"></script>
+</body>
+</html>

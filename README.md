@@ -13,15 +13,18 @@ ráadásul kap hozzá:
 - **élő** vizualizációkat (loss-görbe, karakter-embeddingek PCA-ja a tanulás közben),
 - vizualizáció-galeriát (attention hőtérképek, eloszlások, rétegszám-összehasonlítás).
 
+A projekt a `my-little-jpa` mintájára **monorepo**: `backend/` (Python/FastAPI) +
+`frontend/` (statikus web, nginx), docker-compose-zal indítható.
+
 ---
 
 ## Tartalomjegyzék
 
-1. [Telepítés](#1-telepítés)
-2. [Gyors indítás](#2-gyors-indítás)
-3. [Fájlok és szerepük](#3-fájlok-és-szerepük)
-4. [A létrejövő fájlok](#4-a-létrejövő-fájlok)
-5. [Webes felület (name_ui.py)](#5-webes-felület-name_uipy)
+1. [Repó-szerkezet](#1-repó-szerkezet)
+2. [Telepítés](#2-telepítés)
+3. [Gyors indítás](#3-gyors-indítás)
+4. [Docker](#4-docker)
+5. [Webes felület](#5-webes-felület)
 6. [API végpontok](#6-api-végpontok)
 7. [Parancssori használat](#7-parancssori-használat)
 8. [Hogyan működik a modell](#8-hogyan-működik-a-modell)
@@ -34,105 +37,126 @@ ráadásul kap hozzá:
 
 ---
 
-## 1. Telepítés
+## 1. Repó-szerkezet
+
+```
+microgpt/
+├── backend/                  # Python: a modell + FastAPI + vizualizációk
+│   ├── microgpt.py           # a mag (tokenizer, forward/backward, train, generate)
+│   ├── name_ui.py            # a FastAPI "backend" (API + statikus frontend kiszolgálás)
+│   ├── viz.py                # Plotly vizualizációk
+│   ├── complete_name.py      # parancssori név-kiegészítő
+│   ├── server.py             # a Docker-konténer indítója (uvicorn, 8000)
+│   ├── pyproject.toml        # uv-projekt (függőségek, ruff, pytest)
+│   ├── uv.lock
+│   ├── conftest.py           # pytest-gyökér
+│   └── tests/                # pytest tesztek
+├── frontend/                 # a böngészős rész (statikus, nginx szolgálja ki)
+│   ├── index.html            # főoldal (kiegészítés + tanítás + élő ábrák)
+│   ├── viz.html              # vizualizáció-galería
+│   ├── app.js                # a főoldal JS-e
+│   ├── viz.js                # a galéria JS-e
+│   ├── style.css
+│   ├── nginx.conf            # statikus + API-proxy a backendre
+│   └── Dockerfile
+├── docker-compose.yml        # backend (uvicorn) + frontend (nginx)
+├── PLAN.md                   # fejlesztési terv / mérföldkövek
+├── README.md
+├── LICENSE                   # MIT
+├── .editorconfig
+├── .gitignore
+└── .opencode/                # opencode projekt-config
+    ├── opencode.json
+    └── AGENTS.md             # ágens-memória (a projektről, konvenciókról)
+```
+
+| Fájl | Szerep |
+|---|---|
+| `backend/microgpt.py` | **A mag.** Adathalmaz betöltése, tokenizer, numpy-os előre- és visszaterjesztés, Adam, `train()`, `generate()`, `configure()`/`load_weights()`. |
+| `backend/name_ui.py` | **FastAPI backend.** Név-kiegészítés, temperature, újratanítás (háttér-szál), élő loss/PCA, galéria-API, `model.pkl` cache. |
+| `backend/viz.py` | **Plotly vizualizációk.** `loss_fig`, `nlayer_fig`, `pca_token_fig`, `pca_position_fig`, `attention_fig`, `distribution_fig`. |
+| `backend/complete_name.py` | Parancssori név-kiegészítő (minden futáskor újratanít). |
+| `backend/server.py` | Docker-indító: `_load_cache()` + `uvicorn` 8000-es porton. |
+| `frontend/*` | A böngészős felület (HTML/JS/CSS). Helyben a backend szolgálja ki, docker-ben az nginx. |
+| `docker-compose.yml` | Két szolgáltatás: `backend` (uvicorn) + `frontend` (nginx). |
+| `.opencode/AGENTS.md` | Ágens-memória az opencode számára. |
+
+---
+
+## 2. Telepítés
 
 **Előfeltételek**
 
 - Python **3.12+** (`pyproject.toml` `requires-python = ">=3.12"`)
-- [uv](https://docs.astral.sh/uv/) (gyors Python-csomagkezelő) — a venv-et és a
-  függőségeket ez kezeli.
+- [uv](https://docs.astral.sh/uv/) — a venv-et és a függőségeket ez kezeli.
+- (Dockerhez: Docker Desktop vagy más docker engine.)
 
 **Lépések**
 
 ```bash
-# 1. A függőségek telepítése (létrehozza a .venv-et, és feloldja a uv.lock-ot)
+# 1. A függőségek telepítése (backend/.venv)
+cd backend
 uv sync
 
-# 2. Ellenőrzés: a tesztek lefutnak
+# 2. Tesztek
 uv run pytest
 
 # 3. Indítás (a böngésző automatikusan megnyílik)
 uv run python name_ui.py
 ```
 
-Ha hiányzik az `input.txt`, a `microgpt` modul **első importáláskor automatikusan
-letölti** Karpathy names.txt-jét (internet szükséges).
+Ha hiányzik a `backend/input.txt`, a `microgpt` modul **első importáláskor
+automatikusan letölti** Karpathy names.txt-jét (internet szükséges).
 
 ---
 
-## 2. Gyors indítás
+## 3. Gyors indítás
 
 | Mit akarsz? | Parancs |
 |---|---|
-| Böngészős felület (kiegészítés + tanítás + vizualizációk) | `uv run python name_ui.py` |
-| Új nevek generálása (tréning + 20 minta) | `uv run python microgpt.py` |
-| Egy előtag kiegészítése interaktívan | `uv run python complete_name.py` |
-| Egy előtag kiegészítése argumentummal | `uv run python complete_name.py em` |
-| Tesztek | `uv run pytest` |
-| Lint / format ellenőrzés | `uv run ruff check .` |
+| Böngészős felület | `cd backend && uv run python name_ui.py` |
+| Új nevek generálása (tréning + 20 minta) | `cd backend && uv run python microgpt.py` |
+| Egy előtag kiegészítése interaktívan | `cd backend && uv run python complete_name.py` |
+| Egy előtag kiegészítése argumentummal | `cd backend && uv run python complete_name.py em` |
+| Tesztek | `cd backend && uv run pytest` |
+| Lint / format ellenőrzés | `cd backend && uv run ruff check .` |
 
 ---
 
-## 3. Fájlok és szerepük
+## 4. Docker
 
-| Fájl | Szerep |
-|---|---|
-| `microgpt.py` | **A mag.** Adathalmaz betöltése, tokenizer, a GPT numpy-os előre- és visszaterjesztése, Adam, `train()`, `generate()`, `configure()`/`load_weights()`. Teljesen magyarul dokumentálva. |
-| `name_ui.py` | **FastAPI webes felület.** Név-kiegészítés, temperature csúszka, újratanítás a böngészőből (háttér-szál + élő loss/PCA), `/viz` galéria, `model.pkl` cache-kezelés. |
-| `viz.py` | **Plotly vizualizációk.** `loss_fig`, `nlayer_fig`, `pca_token_fig`, `pca_position_fig`, `attention_fig`, `distribution_fig`. Eldobható tréningeket futtat úgy, hogy a fő modellt nem bántja. |
-| `complete_name.py` | **Parancssori név-kiegészítő.** Betanítja a modellt, majd egy előtagot kiegészít. |
-| `.opencode/AGENTS.md` | **Ágens-memória** az opencode ágensei számára (projekt-összefoglaló, konvenciók, figyelmeztetések). |
-| `.opencode/opencode.json` | Az opencode projekt-konfigja: a fenti `AGENTS.md`-t tölti be utasításként. |
-| `tests/test_microgpt.py` | A mag tesztjei: forward/backward ekvivalencia az eredeti Value-autograd referenciával, tréning-determinizmus, `generate()` korlátai. |
-| `tests/test_viz.py` | A konfiguráció (`configure`/`load_weights`), a `train()` callback és a vizualizáció-függvények tesztjei. |
-| `conftest.py` | Üres pytest-gyökérfájl: ez teszi lehetővé, hogy a tesztek `import microgpt`-t használhassanak a projekt gyökeréből. |
-| `pyproject.toml` | A uv-projekt leírása: függőségek, dev-függőségek, ruff és pytest beállítások. |
-| `uv.lock` | A függőségek pontos, kipróbált verziói (ne szerkeszd kézzel). |
-| `input.txt` | A tanítóadathalmaz (keresztnevek). **Nincs a repóban** — első futtatáskor automatikusan letöltődik a makemore-ból. |
-| `model.pkl` | A betanított modell cache-e (létrejön, ld. [4. fejezet](#4-a-létrejövő-fájlok)). |
+```bash
+docker compose up --build
+```
 
----
+- **Frontend:** http://localhost:8080 (nginx, a statikus fájlok)
+- **Backend:** http://localhost:8000 (uvicorn, az API és a plotly.js)
 
-## 4. A létrejövő fájlok
+A frontend-konténer az API-kéréseket (`/complete`, `/config`, `/retrain`,
+`/temperature`, `/plot/*`, `/plotly.min.js`) proxy-zza a backendre.
 
-| Fájl / mappa | Mikor jön létre? | Lehet törölni? |
-|---|---|---|
-| `input.txt` | Első `microgpt`-import, ha nincs meg (letölti). **Nincs a repóban** (gitignore). | Igen, de újra letölti. |
-| `model.pkl` | A `name_ui.py` első indításakor, vagy ha `/retrain`-nel újratanítasz. A betanított súlyokat + konfigurációt tárolja (n_layer/n_embd/n_head/block_size + `state_dict`). | **Igen** — törlés után a következő indítás újratanít. |
-| `.venv/` | `uv sync` / `uv add`. A virtuális környezet. | Igen, újrateremthető (`uv sync`). |
-| `uv.lock` | `uv add` / `uv sync` | Nem kell törölni. |
-| `__pycache__/`, `tests/__pycache__/` | Python importáláskor. | Igen, ártalmatlan. |
-| `.pytest_cache/`, `.ruff_cache/` | `pytest` / `ruff` futtatáskor. | Igen, ártalmatlan. |
-| `.python-version` | A `uv` esetenként létrehozza (a használt Python-verziót rögzíti). | Ha törlöd, a `uv` a `requires-python`-t használja. |
-
-> **Fontos a cache-ről:** a `model.pkl` az *új* formátumban a konfigurációt is
-> tárolja. Ha régi (csak súlyokat tartalmazó) cache van, a felület nem tudja
-> hozzá a konfigurációt, ezért újratanít. Ha konfigurációt módosítasz, töröld a
-> `model.pkl`-t, vagy tanítsd újra a felületről.
+> Megjegyzés: a konténerek alapból **állapotmentesek** — az `input.txt` és a
+> `model.pkl` a konténer újraindításakor újra létrejön (első induláskor a modell
+> letölti az adatot, majd háttérben tanul). Perzisztens volumen hozzáadása a
+> `PLAN.md`-ben szerepel.
 
 ---
 
-## 5. Webes felület (name_ui.py)
+## 5. Webes felület
 
-Indítás: `uv run python name_ui.py`
+Indítás: `cd backend && uv run python name_ui.py`
 
-- A szerver **véletlenszerű (szabad) porton** indul — a konzol kiírja az URL-t
-  (`open http://127.0.0.1:PORT ...`), és a böngésző automatikusan megnyílik.
+- A szerver **véletlenszerű (szabad) porton** indul — a konzol kiírja az URL-t,
+  és a böngésző automatikusan megnyílik.
 - **Első indítás:** ha nincs `model.pkl`, a modell **háttérben** elkezd tanulni a
-  jelenlegi (modul-szintű) konfigurációval. A felület azonnal elérhető, a
-  tanulás folyamata élőben látható.
-- **További indítások:** a `model.pkl` betöltése azonnali.
+  jelenlegi konfigurációval. A felület azonnal elérhető, a tanulás élőben látható.
 
 ### Főoldal részei
 
-1. **Név-kiegészítés** — írj be egy előtagot (pl. `ka`), és kapsz 5 kiegészítést.
-2. **temperature csúszka** — 0.05..2 között; az érték élőben érvényesül a
-   következő mintavételezésnél.
-3. **Újratanítás** — állítható: `n_layer`, `n_embd`, `n_head`, `block_size`,
-   `steps`, majd „Tanítás" gomb.
-4. **Élő vizualizációk** a tanulás közben:
-   - élő loss-görbe,
-   - a 27 karakter-embedding élő PCA-ja (a pontok „mozognak”, ahogy a modell tanul).
+1. **Név-kiegészítés** — előtag beírása (pl. `ka`), 5 kiegészítés.
+2. **temperature csúszka** — 0.05..2 között, élőben érvényesül.
+3. **Újratanítás** — `n_layer`, `n_embd`, `n_head`, `block_size`, `steps`.
+4. **Élő vizualizációk** — loss-görbe + karakter-embeddingek PCA-ja a tanulás közben.
 5. **Link a galériához** (`/viz`).
 
 ---
@@ -141,75 +165,54 @@ Indítás: `uv run python name_ui.py`
 
 | Módszer | Útvonal | Bemenet | Válasz |
 |---|---|---|---|
-| `GET` | `/` | — | A főoldal HTML-je. |
+| `GET` | `/` | — | A főoldal (frontend/index.html). |
+| `GET` | `/viz` | — | A galéria (frontend/viz.html). |
+| `GET` | `/app.js`, `/viz.js`, `/style.css` | — | A frontend statikus fájljai. |
 | `GET` | `/config` | — | Aktuális konfiguráció + temperature + fut-e tanítás. |
 | `POST` | `/complete` | `{"seed": "ka"}` | `{"results": [...5 név...], "temperature": 0.5}` |
 | `POST` | `/temperature` | `{"value": 1.3}` | `{"temperature": 1.3}` |
 | `POST` | `/retrain` | `{"n_layer", "n_embd", "n_head", "block_size", "steps"}` | `{"ok": true}` (vagy 400/409 hibával) |
-| `GET` | `/plot/live` | — | Élő tanítási állapot: `running`, `step`, `total`, `losses`, `final_loss`, `pca`. |
+| `GET` | `/plot/live` | — | Élő tanítási állapot: `running`, `step`, `total`, `losses`, `pca`. |
 | `GET` | `/plot/loss` | — | A tréning loss-görbéje (Plotly JSON). |
 | `GET` | `/plot/nlayer` | — | 1/2/4 rétegű modell loss-összehasonlítása. |
 | `GET` | `/plot/pca_token` | — | Karakter-embeddingek PCA-ja. |
 | `GET` | `/plot/pca_pos` | — | Pozíció-embeddingek PCA-ja. |
 | `GET` | `/plot/attention` | `?name=karla` | Attention hőtérkép fejenként. |
 | `GET` | `/plot/distribution` | `?prefix=ka` | A következő betű valószínűség-eloszlása. |
-| `GET` | `/viz` | — | A vizualizáció-galería HTML-je. |
-| `GET` | `/plotly.min.js` | — | A plotly.js, **helyben kiszolgálva** (internet/CDN nélkül). |
+| `GET` | `/plotly.min.js` | — | A plotly.js, helyben (internet nélkül). |
 
-A Plotly-figurák JSON-ban érkeznek (`{"data": [...], "layout": {...}}`), amit a
-böngészőben `Plotly.newPlot(el, data, layout)`-lel lehet megjeleníteni.
+A Plotly-figurák JSON-ban érkeznek (`{"data": [...], "layout": {...}}`).
 
-**Validációk:**
-
-- `temperature`: 0.01..5
-- `n_layer`: 1..8
-- `n_embd`: 4..256
-- `n_head`: 1..16, és `n_embd % n_head == 0` kell
-- `block_size`: 2..64
-- `steps`: 10..200 000
+**Validációk:** `temperature` 0.01..5; `n_layer` 1..8; `n_embd` 4..256;
+`n_head` 1..16 (`n_embd % n_head == 0`); `block_size` 2..64; `steps` 10..200 000.
 
 ---
 
 ## 7. Parancssori használat
 
-### Teljes tréning + 20 generált név
-
 ```bash
-uv run python microgpt.py
+cd backend
+uv run python microgpt.py                 # tréning + 20 generált név
+uv run python complete_name.py            # interaktív előtag
+uv run python complete_name.py em         # előtag argumentummal
 ```
-
-A tréning a modul elején beállított `n_layer`, `n_embd`, `n_head`, `block_size`,
-`num_steps` értékekkel fut (alapértelmezés szerint a `pyproject`-től független,
-kódban rögzített értékek — a `microgpt.py` fejlécében módosíthatod).
-
-### Név-kiegészítés
-
-```bash
-uv run python complete_name.py        # interaktívan kér előtagot
-uv run python complete_name.py em     # előtag argumentumként
-```
-
-> A `complete_name.py` minden futáskor újratanít (nincs cache). Ha cache-elt
-> modellt akarsz, használd a webes felületet.
 
 ---
 
 ## 8. Hogyan működik a modell
 
-Ez a mikroGPT egy egyrétegű (alapesetben), karakter-szintű GPT. A teljes
-folyamat magyarul dokumentálva van a `microgpt.py`-ban; itt csak a lényeg:
+Ez a mikroGPT egy karakter-szintű GPT. A teljes folyamat magyarul dokumentálva
+van a `backend/microgpt.py`-ban; a lényeg:
 
-1. **Tokenizer** — minden egyedi karakter token id-t kap (0..n-1), plusz egy
-   `BOS` token jelöli a szekvencia elejét/végét.
-2. **Beágyazás** — `token_embedding` + `position_embedding` minden tokenre.
-3. **Transformer-blokk** — RMSNorm, kauzális multi-head self-attention, MLP
-   (ReLU), két residual összekötéssel.
-4. **lm_head** — a rejtett rétegből a szókészletre vetít, logiteket adva, hogy
-   mi következhet a szekvenciában.
-5. **Tréning** — batched forward + kézzel levezetett backward (láncszabály)
-   numpy `float32` tömbökkel, Adam optimalizálóval, lineáris lr-csökkenéssel.
-6. **Inferencia** — `generate()` tokenenként mintavételez a logitek
-   softmaxából, `temperature`-rel szabályozhatóan.
+1. **Tokenizer** — minden egyedi karakter token id-t kap, plusz egy `BOS` token.
+2. **Beágyazás** — `token_embedding` + `position_embedding`.
+3. **Transformer-blokk** — RMSNorm, kauzális multi-head self-attention, MLP (ReLU),
+   két residual összekötéssel.
+4. **lm_head** — logitek arra, hogy mi következhet a szekvenciában.
+5. **Tréning** — batched forward + kézzel levezetett backward numpy `float32`
+   tömbökkel, Adam optimalizálóval, lineáris lr-csökkenéssel.
+6. **Inferencia** — `generate()` tokenenként mintavételez a logitek softmaxából,
+   `temperature`-rel szabályozhatóan.
 
 Az eredeti Value-alapú autograd helyett **vektorizált, kézi backward** dolgozik,
 ezért a tréning kb. 50-100x gyorsabb — a matematika viszont pontosan ugyanaz
@@ -221,53 +224,39 @@ ezért a tréning kb. 50-100x gyorsabb — a matematika viszont pontosan ugyanaz
 
 | Paraméter | Jelentés | Tipp |
 |---|---|---|
-| `n_layer` | A transformer mélysége (rétegszám). | Több réteg = több elvont minta (szótagszerkezet, suffixek), de több lépés kell. |
-| `n_embd` | A reprezentáció szélessége. | 16 a minimál-játék; 32-64 már érezhetően „ügyesebb”, de lassabb és több paraméter. |
-| `n_head` | Az attention fejek száma. | `n_embd`-nek oszthatónak kell lennie vele. |
-| `block_size` | A kontextusablak hossza. | A leghosszabb név 15 karakter, 16 elég. |
-| `steps` | Hány dokumentumot lát a modell a tréning alatt. | A loss a lépésszámmal csökken; kezdésnek 1000-5000, minőségért több. |
-| `temperature` | A mintavételezés „kreativitása”. | 0.1 = nagyon konzervatív, 0.5 = jó egyensúly, 1+ = kaotikusabb. |
-
-Ha `n_layer`-t növeled, **növeld a `steps`-et is** — különben a mélyebb modell
-alultanul. A UI `/plot/nlayer` galériája mutatja a 1/2/4 réteg közötti
-különbséget azonos lépésszámon.
+| `n_layer` | Mélység. | Több réteg = elvontabb minták, de több lépés kell. |
+| `n_embd` | Szélesség. | 16 a minimál; 32-64 ügyesebb, de lassabb. |
+| `n_head` | Fejek száma. | `n_embd % n_head == 0` kell. |
+| `block_size` | Kontextusablak. | A leghosszabb név 15 karakter, 16 elég. |
+| `steps` | Tanulási lépések. | Loss a lépésszámmal csökken; kezdésnek 1000-5000. |
+| `temperature` | „Kreativitás". | 0.1 konzervatív, 0.5 jó egyensúly, 1+ kaotikusabb. |
 
 ---
 
 ## 10. Vizualizációk
 
 A `/viz` galériában (és részben a főoldalon) interaktív, Plotly-alapú ábrák:
+élő loss, élő embedding-PCA, rétegszám-összehasonlítás, token/pozíció PCA,
+attention hőtérképek, következő-betű eloszlás.
 
-| Ábra | Mit mutat? |
-|---|---|
-| **Élő loss** | A háttér-tanítás loss-görbéje, frissül közben. |
-| **Élő embedding-PCA** | A 27 karakter-embedding 2D-s vetülete; a tanulás alatt látszik, ahogy csoportosulnak. |
-| **Rétegszám-összehasonlítás** | 1/2/4 réteg loss-görbéi azonos lépésszámon. |
-| **Token PCA** | A karakterek token-embeddingjének PCA-ja (vajon csoportosulnak a magánhangzók?). |
-| **Pozíció PCA** | A pozíció-embeddingek PCA-ja (gyakran „hullámos” mintát ad). |
-| **Attention hőtérkép** | Egy névre, fejenként: melyik betű melyik korábbira figyel (kauzális maszk). |
-| **Eloszlás** | Egy prefix után: mennyire valószínű az egyes következő betűk. |
-
-> A `/plot/*` ábrák Plotly-JSON-t adnak. A plotly.js-t a szerver **helyben**
-> szolgálja ki (`/plotly.min.js`), így a megjelenítéshez nincs szükség internetre.
-> Ha épp tanítás fut, a `/plot/loss` és `/plot/nlayer` 409-es választ adnak —
-> a galéria ilyenkor automatikusan újrapróbálja (2 mp-enként, amíg a tanítás
-> nem fejeződik be).
+A `/plot/*` ábrák Plotly-JSON-t adnak; a plotly.js-t a szerver **helyben**
+szolgálja ki (`/plotly.min.js`), így internet nem kell. Ha épp tanítás fut,
+a `/plot/loss` és `/plot/nlayer` 409-et adnak — a galéria automatikusan
+újrapróbálja (2 mp-enként), amíg a tanítás nem fejeződik be.
 
 ---
 
 ## 11. Tesztek és kódminőség
 
 ```bash
+cd backend
 uv run pytest         # 15 teszt
 uv run ruff check .   # lint
 ```
 
-A tesztek közül a legérdekesebb a `tests/test_microgpt.py`-ben található
-**referencia-gradiens teszt**: szó szerint lefuttatja az eredeti Value-alapú
-microgpt-et (a karpathy gist alapján), és összehasonlítja a numpy-os backward
-által számolt gradienseket a referencia-autogradéval. Ezzel garantáljuk, hogy
-a vektorizált átírat **ugyanazt** tanulja, mint az eredeti.
+A legérdekesebb a `tests/test_microgpt.py` **referencia-gradiens tesztje**: az
+eredeti Value-alapú microgpt-et (a karpathy gist alapján) futtatja, és a
+numpy-os backward gradienseit hasonlítja a referencia-autogradéval.
 
 ---
 
@@ -281,36 +270,30 @@ A numpy-os átírat kb. **50-100x gyorsabb**, mint a tiszta-Python Value-verzió
 | 4 réteg, 16 embd | ~2 s |
 | 4 réteg, 32 embd | ~8-10 s |
 
-A `train()` a végén kiírja a pontos időzítést (`trained N steps in X.XXs`).
-
 ---
 
 ## 13. Hibakeresés és gyakori kérdések
 
-**„Can't get attribute 'Value'” hiba a `model.pkl` betöltésekor**
-Régi, a Value-alapú verzióból származó cache van jelen. Töröld a `model.pkl`-t.
+**„Can't get attribute 'Value'" a `model.pkl` betöltésekor**
+Régi, Value-alapú cache van jelen. Töröld a `backend/model.pkl`-t.
 
-**„n_embd osztható legyen n_head-dal” hiba**
-A `n_embd` és `n_head` nem oszthatók egymással (pl. 16 és 3). Válassz párosítást,
-ahol `n_embd % n_head == 0`.
+**„n_embd osztható legyen n_head-dal"**
+A két érték nem osztható egymással. Válassz párosítást, ahol `n_embd % n_head == 0`.
 
 **A galéria ábrái nem jelennek meg**
 A plotly.js-t a szerver helyben adja ki (`/plotly.min.js`), internet nem kell.
-Ha mégis üres egy ábra: (1) a tréning alatt a `/plot/loss` és `/plot/nlayer`
-409-et adnak — a galéria automatikusan újrapróbálja, várj egy kicsit;
-(2) nyisd meg a böngésző konzolt (F12), és nézd meg, van-e hibaüzenet;
-(3) ellenőrizd, hogy a szerver fut és a `/plotly.min.js` elérhető.
-
-**A modell értelmetlen neveket ad**
-A tréning túl rövid, vagy a `temperature` túl magas. Taníts tovább (`steps`),
-vagy csökkentsd a temperature-t.
+Ha mégis üres: (1) tréning alatt a `/plot/loss` és `/plot/nlayer` 409-et adnak —
+a galéria automatikusan újrapróbálja; (2) böngészőkonzol (F12); (3) ellenőrizd,
+hogy a backend elérhető.
 
 **Melyik porton fut a szerver?**
-Véletlenszerű (szabad) porton — az indításkor kiírt `open http://127.0.0.1:PORT`
-URL-t nyisd meg (a böngésző magától megnyílik).
+Helyben véletlenszerű (a konzol kiírja); dockerben frontend 8080, backend 8000.
 
-**Hogyan törölhetem a tanult modellt és kezdem újra?**
-Töröld a `model.pkl`-t (és opcionálisan az `input.txt`-et), majd indítsd újra.
+**A modell értelmetlen neveket ad**
+Túl rövid tréning, vagy túl magas `temperature`. Taníts tovább, vagy csökkentsd.
+
+**Hogyan kezdem újra?**
+Töröld a `backend/model.pkl`-t (és opcionálisan a `backend/input.txt`-et).
 
 ---
 

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>microgpt</title>
+<script src="/plotly.min.js"></script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<h1>microgpt</h1>
+
+<h2>Név-kiegészítés</h2>
+<div class="row">
+  <input id="seed" type="text" placeholder="pl. ka" autocomplete="off">
+  <button onclick="doComplete()">Kiegészítés</button>
+  <label>temperature
+    <input id="temp" type="range" min="0.05" max="2" step="0.05" value="0.5" oninput="setTemp()">
+    <span id="tempval">0.50</span>
+  </label>
+</div>
+<ul id="out"></ul>
+<p id="err"></p>
+
+<h2>Újratanítás</h2>
+<div class="row">
+  <label>rétegek <input id="f_layers" type="number" min="1" max="8"></label>
+  <label>embd <input id="f_embd" type="number" min="4" max="256"></label>
+  <label>fejek <input id="f_heads" type="number" min="1" max="16"></label>
+  <label>block <input id="f_block" type="number" min="2" max="64"></label>
+  <label>steps <input id="f_steps" type="number" min="10" max="200000"></label>
+  <button onclick="startTrain()">Tanítás</button>
+</div>
+<p id="trainstatus"></p>
+<div id="live_loss" class="chart"></div>
+<div id="live_pca" class="chart"></div>
+
+<p><a href="/viz">Vizualizációk galéria &rarr;</a></p>
+
+<script src="/app.js"></script>
+</body>
+</html>

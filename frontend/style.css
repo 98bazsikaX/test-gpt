@@ -1,0 +1,14 @@
+/* microgpt — közös stílusok (főoldal + vizualizáció-galería) */
+body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #222; }
+h1 { font-size: 24px; }
+h2 { font-size: 18px; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+input[type=text], input[type=number] { font-size: 15px; padding: 6px 8px; border: 1px solid #999; border-radius: 4px; }
+input[type=range] { width: 180px; vertical-align: middle; }
+button { font-size: 15px; padding: 7px 14px; border: 1px solid #999; border-radius: 4px; background: #eee; cursor: pointer; }
+ul { list-style: none; padding: 0; }
+li { font-size: 20px; padding: 5px 0; border-bottom: 1px solid #eee; }
+#err, #trainstatus { color: #b00; font-size: 14px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+label { font-size: 14px; }
+a { color: #06c; }
+.chart { min-height: 330px; }

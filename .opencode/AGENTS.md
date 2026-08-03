@@ -8,25 +8,31 @@ való, és milyen szabályokat érdemes betartani a projekten dolgozva.
 Egy **oktató jellegű mini-GPT** (keresztnév-generáló), tiszta Python + numpy,
 FastAPI webes felülettel és Plotly vizualizációkkal. Eredete: Karpathy microgpt
 — ez a projekt a Value-alapú autogradot vektorizált, kézi numpy backward-ra
-cseréli, és böngészős felületet kap.
+cseréli, és böngészős felületet kap. Monorepo: `backend/` (Python) + `frontend/`
+(statikus web), docker-compose-zal.
 
 ## Fájlok és szerepük
 
 | Fájl | Szerep |
 |---|---|
-| `microgpt.py` | A mag: adathalmaz, tokenizer, numpy forward/backward, Adam, `train()`, `generate()`, `configure()`, `load_weights()`, `MODEL_LOCK`. |
-| `name_ui.py` | FastAPI UI: név-kiegészítés, temperature, újratanítás (háttér-szál), élő loss/PCA, `/viz` galéria, `model.pkl` cache. |
-| `viz.py` | Plotly figure-k: loss, rétegszám-összehasonlítás, PCA, attention, eloszlás. |
-| `complete_name.py` | Parancssori név-kiegészítő (minden futáskor újratanít, nincs cache). |
+| `backend/microgpt.py` | A mag: adathalmaz, tokenizer, numpy forward/backward, Adam, `train()`, `generate()`, `configure()`, `load_weights()`, `MODEL_LOCK`. |
+| `backend/name_ui.py` | FastAPI backend: API + statikus frontend kiszolgálás, újratanítás (háttér-szál), élő loss/PCA, `model.pkl` cache. |
+| `backend/viz.py` | Plotly figure-k: loss, rétegszám-összehasonlítás, PCA, attention, eloszlás. |
+| `backend/complete_name.py` | Parancssori név-kiegészítő (minden futáskor újratanít, nincs cache). |
+| `backend/server.py` | Docker-indító (uvicorn, 8000). |
+| `frontend/` | Statikus HTML/JS/CSS (index.html, viz.html, app.js, viz.js, style.css) + nginx. |
 | `tests/` | Pytest tesztek: `test_microgpt.py` (mag + referencia-gradiens), `test_viz.py`. |
+| `docker-compose.yml` | backend (uvicorn) + frontend (nginx). |
 | `README.md` | Bő, felhasználó-orientált dokumentáció. |
+| `PLAN.md` | Fejlesztési terv / mérföldkövek. |
 
-## Parancsok
+## Parancsok (a `backend/` mappában)
 
 - Szerver futtatása: `uv run python name_ui.py`
 - Tesztek: `uv run pytest`
 - Lint: `uv run ruff check .`
 - Új függőség: `uv add <csomag>` (dev: `uv add --dev <csomag>`)
+- Docker: a repó gyökeréből `docker compose up --build`
 
 ## Konvenciók és fontos részletek
 
@@ -35,12 +41,15 @@ cseréli, és böngészős felületet kap.
   `forward(tokens)`, `backward(cache, grad_logits, gradients)`, `configure(layers, embd, heads, block, fresh)`,
   `load_weights(state, layers, embd, heads, block)`, `reset_params()`, `state_dict`, `param_keys`.
 - **Tesztekben SOHA ne importáld a `name_ui`-t** — a modulimport cache-betöltést /
-  háttér-tanítást indíthat (amely lefoglalja a `MODEL_LOCK`-ot, és lelassítja a
-  teszteket). Tesztelj `microgpt` + `viz` szinten.
+  háttér-tanítást indíthat (amely lefoglalja a `MODEL_LOCK`-ot). Tesztelj
+  `microgpt` + `viz` szinten.
 - A `model.pkl` cache formátuma: `{n_layer, n_embd, n_head, block_size, state_dict}`.
 - A plotly.js-t a szerver **helyben** szolgálja ki (`/plotly.min.js`), CDN nélkül —
   ne cseréld vissza CDN-re.
 - A `configure()`-nél `n_embd % n_head == 0` kötelező (különben ValueError).
+- A frontend fájlok a `frontend/` mappában vannak; a backend `../frontend`-ből
+  olvassa őket. Dockerben a frontend-konténer (nginx) adja ki őket, és az
+  API-t proxy-zza a backendre (`nginx.conf`).
 
 ## Ismert hibák / figyelmeztetések
 
@@ -52,3 +61,5 @@ cseréli, és böngészős felületet kap.
 - A viz `_snapshot`/`_restore` a TELJES konfigurációt menti/visszaállítja
   (n_layer, n_embd, n_head, block_size, shapes, param_keys, ...) — ha bővíted,
   mindkettőt frissítsd.
+- `complete_name.py` minden futáskor újratanít (nincs cache) — a UI a cache-elt
+  verziót használja.
