@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+model.pkl
+input.txt
+tests/
+conftest.py
+complete_name.py
