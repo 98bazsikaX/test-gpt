@@ -37,10 +37,54 @@ import random  # a dokumentumok összekeverése (shuffle)
 import threading  # a tréningek összehangolása (MODEL_LOCK)
 import time  # a tréning időzítése (benchmark)
 
-import numpy as np  # a vektorizált számolások alapja
+import numpy as _np  # a vektorizált számolások alapja (CPU)
+
+# Opcionális GPU-backend (CuPy): ha elérhető, a modell GPU-n tanul, egyébként
+# (pl. CI-n) automatikusan numpy-fallback. A cupy "drop-in" numpy, így a
+# kézi forward/backward kód változatlan marad.
+try:
+    import cupy as _gpu
+    _GPU_AVAILABLE = bool(_gpu.cuda.is_available())
+except Exception:  # nincs cupy vagy nincs CUDA-driver
+    _gpu = None
+    _GPU_AVAILABLE = False
+
+np = _gpu if _GPU_AVAILABLE else _np
+BACKEND = 'gpu' if _GPU_AVAILABLE else 'cpu'
+
+
+def set_backend(name):
+    """A számolási backend átváltása: 'cpu' (numpy) vagy 'gpu' (cupy).
+
+    Megjegyzés: a már meglévő paraméterek (state_dict) nem "költöznek" át —
+    váltás után hívd a reset_params()-t, ha a kiválasztott backendre szóló
+    friss paramétereket akarsz.
+    """
+    global np, BACKEND
+    if name == 'gpu':
+        if not _GPU_AVAILABLE:
+            raise RuntimeError('cupy/CUDA nem elérhető')
+        np = _gpu
+        BACKEND = 'gpu'
+    elif name == 'cpu':
+        np = _np
+        BACKEND = 'cpu'
+    else:
+        raise ValueError(f'ismeretlen backend: {name!r} (cpu|gpu)')
+
+
+def _to_cpu(x):
+    """Egy tömböt CPU-numpy-ra konvertál (cupy esetén `.get()`)."""
+    return x.get() if hasattr(x, 'get') else x
+
+
+def _to_active(x):
+    """Egy (CPU-s) tömböt az aktív backendre konvertál (súlybetöltéshez)."""
+    return np.asarray(x)
+
 
 random.seed(42)    # Legyen rend a káoszban (reprodukálható shuffle)
-np.random.seed(42) # és a numpy véletlenjei is legyenek reprodukálhatók
+np.random.seed(42) # és a backend véletlenjei is legyenek reprodukálhatók
 
 # Egyetlen zár a modell-gróbokra: a tréningek (UI-háttérszál, viz-eldobható
 # tréning) egymást kizárják. Az inferencia (completions, plotok) nem zárol,
@@ -88,7 +132,7 @@ print(f"vocab size: {vocab_size}")
 #   - n_head attention fej; minden fej head_dim dimenziót lát
 # Megjegyzés: az eredeti GPT-2-höz képest kimarad a LayerNorm (helyette
 # RMSNorm), nincsenek bias-ok, és GeLU helyett ReLU aktivációt használunk.
-n_layer = 4     # a transformer mélysége (rétegszám)
+n_layer = 6     # a transformer mélysége (rétegszám)
 n_embd = 16     # a háló szélessége (beágyazási dimenzió)
 block_size = 16 # a kontextusablak maximális hossza (tokenekben)
 n_head = 4      # az attention fejek száma
@@ -206,12 +250,12 @@ def load_weights(state, layers, embd=None, heads=None, block=None):
 
     A `model.pkl` cache-nek a rétegszámot és a méreteket is tárolnia kell,
     különben újraindításkor pl. a 4 rétegű súlyok egy 1 rétegű modellbe
-    kerülnének. Ez a függvény a konfiguráció beállítása után tölti be a
-    súlyokat és a paraméterlistát (kezdő inicializáció nélkül).
+    kerülnének. A betöltött (CPU-s) súlyokat az aktív backendre konvertáljuk,
+    így cache-betöltés után is GPU-n tanulhatunk.
     """
     global state_dict, params
     configure(layers=layers, embd=embd, heads=heads, block=block, fresh=False)
-    state_dict = state
+    state_dict = {key: _to_active(arr) for key, arr in state.items()}
     params = [state_dict[key] for key in param_keys]
 
 
@@ -491,7 +535,7 @@ def backward(cache, grad_logits, gradients):
 # A tanulási sebességet lineárisan csökkentjük (learning rate decay): a tréning
 # elején nagy lépéseket tesz, a végén finomakat.
 learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8
-num_steps = 32000  # hány dokumentumot "tanuljunk meg" egy sorozatban
+num_steps = 96000  # hány dokumentumot "tanuljunk meg" egy sorozatban (~3 epoch)
 
 
 def train(callback=None):
@@ -514,10 +558,12 @@ def train(callback=None):
     az 1-indexelt lépésszámot és az aktuális loss-t. Ebből tudja a webes
     felület élőben követni a tanulást (loss-görbe, embedding-PCA).
     """
-    # A momentum-pufferek a paraméterekkel azonos alakú nulla tömbök
+    # A momentum-pufferek a paraméterekkel azonos alakú nulla tömbök.
+    # A `losses` mindig CPU-numpy tömb (backendtől független), hogy a tesztek
+    # és a vizualizációk ne keveredjenek GPU-tömbökkel.
     first_moment = {key: np.zeros_like(p) for key, p in zip(param_keys, params)}
     second_moment = {key: np.zeros_like(p) for key, p in zip(param_keys, params)}
-    losses = np.zeros(num_steps, dtype=np.float64)
+    losses = _np.zeros(num_steps, dtype=np.float64)
 
     t0 = time.time()  # benchmark
     for step in range(num_steps):
@@ -535,9 +581,10 @@ def train(callback=None):
         probs = softmax(logits, axis=-1)               # (n, vocab_size)
         idx = np.arange(n)
         loss = -np.log(probs[idx, tgt]).mean()         # átlagos cross-entropy
-        losses[step] = loss
+        loss_val = float(loss)  # a GPU-s skalar is CPU-float lesz
+        losses[step] = loss_val
         if callback is not None:
-            callback(step + 1, loss)
+            callback(step + 1, loss_val)
 
         # --- 5) visszaterjesztés ------------------------------
         gradients = {key: np.zeros_like(p) for key, p in zip(param_keys, params)}
@@ -558,7 +605,7 @@ def train(callback=None):
             param -= lr_t * m_hat / (np.sqrt(v_hat) + eps_adam)
 
         if (step + 1) % 100 == 0 or step == 0:
-            print(f"step {step+1:4d} / {num_steps:4d} | loss {loss:.4f}")
+            print(f"step {step+1:4d} / {num_steps:4d} | loss {loss_val:.4f}")
 
     elapsed = time.time() - t0
     print(f"trained {num_steps} steps in {elapsed:.2f}s ({elapsed / num_steps * 1000:.1f} ms/step)")
@@ -625,7 +672,9 @@ def generate(prefix='', temperature=0.5, max_len=block_size):
     pos = len(tokens)
     while pos < max_len:
         probs = softmax(logits / temperature)
-        tok = int(np.random.choice(vocab_size, p=probs))
+        # size=1: a cupy (GPU) nem támogatja a "size nélküli" choice()-t,
+        # a numpy viszont igen — ez a forma mindkét backenden működik.
+        tok = int(np.random.choice(vocab_size, size=1, p=probs)[0])
         if tok == BOS:
             break
         sample.append(uchars[tok])
