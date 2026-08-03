@@ -14,6 +14,8 @@ const lossLayout = {
   xaxis: { title: 'lépés' },
   yaxis: { title: 'loss' },
   height: 320,
+  showlegend: true,
+  legend: { orientation: 'h', y: -0.15 },
   ...chartTheme,
 };
 const pcaLayout = {
@@ -77,6 +79,22 @@ function setStatus(text) {
   document.getElementById('trainstatus').textContent = text;
 }
 
+/* Exponenciális mozgóátlag (EMA) — "aluláteresztő szűrő" a zajos loss-görbéhez.
+   Az alpha szabályozza a simaságot: kicsi = simább (lassabb reakció). */
+function ema(arr, alpha) {
+  const out = new Array(arr.length);
+  if (!arr.length) return out;
+  let e = arr[0];
+  out[0] = e;
+  for (let i = 1; i < arr.length; i++) {
+    e = alpha * arr[i] + (1 - alpha) * e;
+    out[i] = e;
+  }
+  return out;
+}
+
+const SMOOTH_MIN_POINTS = 60;  // ennyi lépés után jelenik meg a simított vonal
+
 let polling = false;
 async function pollLive() {
   if (polling) return;
@@ -86,7 +104,17 @@ async function pollLive() {
     setStatus(statusText(d));
     if (d.losses && d.losses.length) {
       const x = Array.from({ length: d.losses.length }, (_, i) => i + 1);
-      Plotly.react('live_loss', [{ x, y: d.losses, mode: 'lines', name: 'loss', line: { color: '#2f6f68' } }], lossLayout);
+      const traces = [{
+        x, y: d.losses, mode: 'lines', name: 'loss',
+        line: { color: '#8a94a6', width: 1 },
+      }];
+      if (d.losses.length >= SMOOTH_MIN_POINTS) {
+        traces.push({
+          x, y: ema(d.losses, 0.03), mode: 'lines', name: 'mozgóátlag',
+          line: { color: '#2f6f68', width: 2.5 },
+        });
+      }
+      Plotly.react('live_loss', traces, lossLayout);
     }
     if (d.pca && d.pca.length) {
       Plotly.react('live_pca', [{
