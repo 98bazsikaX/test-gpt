@@ -1,0 +1,12 @@
+# virtuális környezet és cache
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# a betanított modell (újragenerálható)
+model.pkl
+
+# az adathalmaz (első futtatáskor automatikusan letöltődik a makemore-ból)
+input.txt

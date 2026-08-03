@@ -1,0 +1,30 @@
+[project]
+name = "microgpt"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141.1",
+    "numpy>=2.5.1",
+    "plotly>=6.9.0",
+    "uvicorn>=0.52.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+# A name_ui.py HTML/CSS/JS stringjei tartalmilag hosszú sorok -> ott nem kell a 100-as limittel cseszkedni
+[tool.ruff.lint.per-file-ignores]
+"name_ui.py" = ["E501"]
