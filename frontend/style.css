@@ -200,6 +200,27 @@ details.help p { margin: 8px 0; font-size: 14px; line-height: 1.55; color: var(-
 details.help ul { margin: 6px 0 6px 18px; font-size: 14px; }
 details.help a, .glossary a { color: var(--accent); }
 
+/* Tengelyek és színek: kompakt dl-grid az ábramagyarázatokhoz */
+details.help dl.axes {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+details.help dl.axes dt {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+details.help dl.axes dd { margin: 0; color: var(--ink); }
+
 .glossary {
   background: var(--surface-2);
   border: 1px solid var(--line);

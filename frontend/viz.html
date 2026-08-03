@@ -52,6 +52,11 @@
         (több elvont mintát tud megragadni), de cserébe több lépés kell neki —
         különben <em>alultanul</em>, és a görbéje magasan marad.
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>A <strong>tanulási lépések száma</strong> — hány dokumentumot látott a modell eddig (a beállított lépésszámig).</dd>
+        <dt>Y tengely</dt><dd>A <strong>loss</strong> (átlagos cross-entropia), mozgóátlaggal simítva — minél alacsonyabb, annál jobban tanult.</dd>
+        <dt>Színezés</dt><dd>A vonal színe a modell <strong>mélységét</strong> jelöli (1 / 2 / 4 réteg). Mindhárom modell ugyanannyi lépést kapott.</dd>
+      </dl>
       <ul>
         <li><a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Mi az a cross-entropia? (Wikipedia)</a></li>
         <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" target="_blank">Mit jelent a „réteg" a Transformerben?</a></li>
@@ -77,6 +82,11 @@
         GPT-kben használt szinuszos pozíció-kódoláshoz. Ez kell ahhoz, hogy tudja:
         a 3. betű más helyzetben van, mint a 8.
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>Az <strong>1. főkomponens</strong> — az az irány a 16 dimenziós vektortérben, amerre a pontok a leginkább szóródnak.</dd>
+        <dt>Y tengely</dt><dd>A <strong>2. főkomponens</strong> — az erre merőleges, második legnagyobb varianciájú irány.</dd>
+        <dt>Jelölés</dt><dd>Minden pont egy <strong>pozíció</strong> (1..16); a rajta lévő szám azonosítja. A közeli pontok a modell szerint hasonló jelentésű pozíciók.</dd>
+      </dl>
       <ul>
         <li><a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a></li>
         <li><a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a></li>
@@ -105,6 +115,11 @@
         <em>kauzális maszk</em>: a modell sosem nézhet a jövőbe, csak az eddig
         látott betűkre.
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>A <strong>kulcs</strong> pozíció — az a betű, amire a modell <em>néz</em> (az oszlop betűje).</dd>
+        <dt>Y tengely</dt><dd>A <strong>lekérdezés</strong> pozíció — az a betű, amelyik épp <em>figyel</em> (a sor betűje).</dd>
+        <dt>Színezés</dt><dd>A cella színe az <strong>attention súlyt</strong> mutatja: sötét = alig figyelt (≈0), világos/sárga = erősen (≈1). A jobb-felső háromszög üres — a kauzális maszk miatt a modell nem nézhet a jövőbe.</dd>
+      </dl>
       <ul>
         <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">The Illustrated Transformer — az attention lépésről lépésre</a></li>
         <li><a href="https://arxiv.org/abs/1706.03762" target="_blank">Az eredeti „Attention is all you need" cikk</a></li>
@@ -136,6 +151,11 @@
         <em>temperature</em>: alacsonyan csak a legvalószínűbbet választja, magasan
         több kockázatot vállal.
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>A lehetséges <strong>következő betűk</strong> (a–z) a megadott előtag után.</dd>
+        <dt>Y tengely</dt><dd>A modell által adott <strong>valószínűség</strong> (0–1) — mennyire tartja valószínűnek, hogy az a betű jön. Az oszlopok összege 1.</dd>
+        <dt>Színezés</dt><dd>Egységes szín — a <strong>magasság</strong> a lényeg: magas oszlop = a modell ezt várja leginkább, alacsony = szinte kizárt.</dd>
+      </dl>
       <ul>
         <li><a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Mi az a softmax? (Wikipedia)</a></li>
         <li><a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Hogyan működik a nyelvi modell? (Wikipedia)</a></li>

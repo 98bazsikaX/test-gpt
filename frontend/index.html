@@ -81,6 +81,11 @@
         megjelenik a teal <strong>„mozgóátlag"</strong> (egy aluláteresztő / EMA
         szűrő), ami a zajt kisimítja — a valódi tanulási trendet az adja meg.
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>A <strong>tanulási lépés</strong> — az idő előrehaladása a tréning alatt.</dd>
+        <dt>Y tengely</dt><dd>A <strong>loss</strong> — a modell átlagos hibája (minél kisebb, annál jobb).</dd>
+        <dt>Vonalak</dt><dd>Szürke, vékony = <strong>nyers</strong> lépésről lépésre; teal, vastag = <strong>mozgóátlag</strong> (EMA), a zajtól megtisztított trend.</dd>
+      </dl>
       <p>
         <a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (Wikipedia)</a>
         &nbsp;·&nbsp;
@@ -98,6 +103,11 @@
         tanulás után jellegzetes csoportokat alakítanak ki (pl. magánhangzók és
         mássalhangzók elkülönülnek).
       </p>
+      <dl class="axes">
+        <dt>X tengely</dt><dd>Az <strong>1. főkomponens</strong> — a legnagyobb szórást magyarázó irány a vektortérben.</dd>
+        <dt>Y tengely</dt><dd>A <strong>2. főkomponens</strong> — a rá merőleges, második legnagyobb varianciájú irány.</dd>
+        <dt>Pontok</dt><dd>Minden pont egy <strong>betű</strong> (a–z + BOS). A közelség azt mutatja, a modell mennyire hasonlónak tartja őket — élőben figyelheted, ahogy csoportosulnak.</dd>
+      </dl>
       <p>
         <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a>
         &nbsp;·&nbsp;
