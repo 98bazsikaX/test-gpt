@@ -10,6 +10,24 @@
 <h1>microgpt</h1>
 
 <h2>Név-kiegészítés</h2>
+<details class="help">
+  <summary>Hogyan működik a kiegészítés?</summary>
+  <p>
+    A modell minden lépésben megjósolja, mi a legvalószínűbb <strong>következő betű</strong>,
+    majd a jósolt eloszlásból mintavételez. Így a beírt előtagból (pl. „ka") egyre
+    tovább építi a nevet, amíg el nem éri a szöveg végét (a BOS tokent).
+  </p>
+  <p>
+    A <strong>temperature</strong> szabályozza a „kreativitást": alacsonyan
+    (pl. 0.1) a modell szinte mindig a legvalószínűbb betűt választja, magasan
+    (pl. 1+) bátrabban kockáztat — érdekesebb, de hibbantabb neveket kaphatsz.
+  </p>
+  <p>
+    <a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Mi az a nyelvi modell? (Wikipedia)</a>
+    &nbsp;·&nbsp;
+    <a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Softmax (Wikipedia)</a>
+  </p>
+</details>
 <div class="row">
   <input id="seed" type="text" placeholder="pl. ka" autocomplete="off">
   <button onclick="doComplete()">Kiegészítés</button>
@@ -31,7 +49,36 @@
   <button onclick="startTrain()">Tanítás</button>
 </div>
 <p id="trainstatus"></p>
+<details class="help">
+  <summary>Mit mutat az élő loss-görbe?</summary>
+  <p>
+    A <strong>loss</strong> (cross-entropia) a modell átlagos hibája: minél kisebb,
+    annál jobban tanult. A tanítás alatt <strong>élőben</strong> nézheted, ahogy
+    csökken. Ha ugrál, az normális — a modell egyesével, sorrendben tanul be
+    neveket, így egy-egy nehéz név átmenetileg megdobja a hibát.
+  </p>
+  <p>
+    <a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (Wikipedia)</a>
+    &nbsp;·&nbsp;
+    <a href="https://en.wikipedia.org/wiki/Gradient_descent" target="_blank">Hogyan tanul a háló? (Wikipedia)</a>
+  </p>
+</details>
 <div id="live_loss" class="chart"></div>
+<details class="help">
+  <summary>Mit mutat az élő embedding-PCA?</summary>
+  <p>
+    A modell minden betűnek egy <strong>jelentésvektort</strong> (embeddint) tanul.
+    A <strong>PCA</strong> ezt vetíti 2 dimenzióba, hogy meglásd, ahogy a tanulás
+    során a betűk „helyet keresnek maguknak". Eleinte véletlenszerűen szóródnak;
+    tanulás után jellegzetes csoportokat alakítanak ki (pl. magánhangzók és
+    mássalhangzók elkülönülnek).
+  </p>
+  <p>
+    <a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a>
+    &nbsp;·&nbsp;
+    <a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a>
+  </p>
+</details>
 <div id="live_pca" class="chart"></div>
 
 <p><a href="/viz">Vizualizációk galéria &rarr;</a></p>
