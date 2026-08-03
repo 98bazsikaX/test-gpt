@@ -225,6 +225,15 @@ def plotly_js():
     return FileResponse(PLOTLY_JS, media_type='application/javascript')
 
 
+@app.get('/fonts/{name}')
+def font_file(name: str):
+    """A self-hostolt betűfájlok (frontend/fonts) — offline tipográfia."""
+    path = os.path.join(FRONTEND_DIR, 'fonts', name)
+    if os.path.exists(path):
+        return FileResponse(path, media_type='font/woff2')
+    return JSONResponse({'error': f'hiányzó betűfájl: {name}'}, status_code=404)
+
+
 # -----------------------------------------------------------------------------
 # API
 # -----------------------------------------------------------------------------

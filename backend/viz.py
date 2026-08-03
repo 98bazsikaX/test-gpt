@@ -30,6 +30,17 @@ from plotly.subplots import make_subplots
 import microgpt
 from microgpt import BOS, block_size, softmax, stoi, uchars
 
+# A plotok a frontend "napfényes papír" témáját követik (ld. frontend/style.css)
+NOTEBOOK = go.layout.Template()
+NOTEBOOK.layout.paper_bgcolor = '#f6f0e4'
+NOTEBOOK.layout.plot_bgcolor = '#fffdf8'
+NOTEBOOK.layout.font = {'family': 'system-ui, sans-serif', 'size': 13, 'color': '#1c2433'}
+NOTEBOOK.layout.title = {'font': {'family': 'Space Grotesk, sans-serif',
+                                  'size': 16, 'color': '#1c2433'}}
+NOTEBOOK.layout.xaxis = {'gridcolor': '#e8dfd0', 'zerolinecolor': '#e8dfd0', 'linecolor': '#d6c9b2'}
+NOTEBOOK.layout.yaxis = {'gridcolor': '#e8dfd0', 'zerolinecolor': '#e8dfd0', 'linecolor': '#d6c9b2'}
+NOTEBOOK.layout.colorway = ['#2f6f68', '#c07a12', '#5b6574', '#24549c', '#8a5a44']
+
 # A tréningek a microgpt.MODEL_LOCK alatt futnak, hogy az eldobható tréningek
 # (amik a modul-globálokat írják) ne keveredjenek egy futó UI-tanítással.
 
@@ -125,7 +136,7 @@ def loss_fig(steps=1000):
                              name='mozgóátlag', line=dict(color='#d62728', dash='dot')))
     fig.update_layout(title=f'Tréning loss ({steps} lépés)',
                       xaxis_title='lépés', yaxis_title='loss',
-                      template='plotly_white', height=380)
+                      template=NOTEBOOK, height=380)
     return fig
 
 
@@ -140,7 +151,7 @@ def nlayer_fig(steps=1500):
                                  name=f'{layers} réteg'))
     fig.update_layout(title=f'Rétegszám-összehasonlítás ({steps} lépés)',
                       xaxis_title='lépés', yaxis_title='loss (mozgóátlag)',
-                      template='plotly_white', height=380)
+                      template=NOTEBOOK, height=380)
     return fig
 
 
@@ -159,7 +170,7 @@ def pca_token_fig():
     ))
     fig.update_layout(title='Karakter-embeddingek PCA-ja',
                       xaxis_title='1. főkomponens', yaxis_title='2. főkomponens',
-                      template='plotly_white', height=380)
+                      template=NOTEBOOK, height=380)
     return fig
 
 
@@ -174,7 +185,7 @@ def pca_position_fig():
     ))
     fig.update_layout(title='Pozíció-embeddingek PCA-ja',
                       xaxis_title='1. főkomponens', yaxis_title='2. főkomponens',
-                      template='plotly_white', height=380)
+                      template=NOTEBOOK, height=380)
     return fig
 
 
@@ -216,7 +227,7 @@ def attention_fig(name, layer=0):
             row=row + 1, col=col + 1,
         )
     fig.update_layout(title=f'Attention súlyok a névre: „{name}”',
-                      template='plotly_white', height=380 * rows)
+                      template=NOTEBOOK, height=380 * rows)
     return fig
 
 
@@ -240,5 +251,6 @@ def distribution_fig(prefix):
     fig = go.Figure(go.Bar(x=uchars, y=probs, marker=dict(color='#2ca02c')))
     fig.update_layout(title=f'Következő betű eloszlása „{prefix}” után',
                       xaxis_title='következő betű', yaxis_title='valószínűség',
-                      template='plotly_white', height=380)
+                      template=NOTEBOOK, height=380)
     return fig
+

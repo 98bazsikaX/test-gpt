@@ -3,135 +3,155 @@
 <head>
 <meta charset="utf-8">
 <title>microgpt vizualizációk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="/plotly.min.js"></script>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1><a href="/">&larr; vissza</a> microgpt vizualizációk</h1>
+<div class="wrap">
 
-<p>
-  Ez az oldal egy <strong>apró, oktató jellegű GPT</strong> „belső világát" mutatja
-  meg: azokat a számításokat és reprezentációkat, amikből a modell összerakja a
-  neveket. Minden ábra alatt ott a magyarázat — és a végén a fogalmakhoz vezető
-  külső linkek.
-</p>
+  <header class="hero">
+    <p class="eyebrow">inside the model</p>
+    <h1><a href="/" style="color:inherit">&larr;</a> Vizualizációk</h1>
+    <p class="tagline">
+      Ez az oldal egy <strong>apró, oktató jellegű GPT</strong> „belső világát" mutatja
+      meg: azokat a számításokat és reprezentációkat, amikből a modell összerakja a
+      neveket. Minden ábra alatt ott a magyarázat — a fogalmakhoz vezető külső
+      linkekkel.
+    </p>
+  </header>
 
-<div class="glossary">
-  <h3>Fogalomtár — hova mélyedj bele?</h3>
-  <ul>
-    <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" target="_blank">Transformer</a> — a GPT mögött álló hálózat-típus</li>
-    <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">The Illustrated Transformer</a> — a legjobb képes bevezető az attentionhöz</li>
-    <li><a href="https://arxiv.org/abs/1706.03762" target="_blank">„Attention is all you need"</a> — az eredeti tanulmány</li>
-    <li><a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Beágyazás (embedding)</a> — miért van a szavaknak/betűknek „jelentésvektora"</li>
-    <li><a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">PCA</a> — hogyan vetítünk sokdimenziós vektorokat 2D-be</li>
-    <li><a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Softmax</a> — logitekből valószínűség</li>
-    <li><a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (loss)</a> — a modell hibájának mérőszáma</li>
-    <li><a href="https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi" target="_blank">3Blue1Brown: neural network-sorozat</a> — a gépi tanulás alapjai vizuálisan</li>
-  </ul>
+  <div class="glossary">
+    <h3>Fogalomtár — hova mélyedj bele?</h3>
+    <ul>
+      <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" target="_blank">Transformer</a> — a GPT mögött álló hálózat-típus</li>
+      <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">The Illustrated Transformer</a> — a legjobb képes bevezető az attentionhöz</li>
+      <li><a href="https://arxiv.org/abs/1706.03762" target="_blank">„Attention is all you need"</a> — az eredeti tanulmány</li>
+      <li><a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Beágyazás (embedding)</a> — miért van a szavaknak/betűknek „jelentésvektora"</li>
+      <li><a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">PCA</a> — hogyan vetítünk sokdimenziós vektorokat 2D-be</li>
+      <li><a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Softmax</a> — logitekből valószínűség</li>
+      <li><a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Cross-entropia (loss)</a> — a modell hibájának mérőszáma</li>
+      <li><a href="https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi" target="_blank">3Blue1Brown: neural network-sorozat</a> — a gépi tanulás alapjai vizuálisan</li>
+    </ul>
+  </div>
+
+  <section class="card">
+    <p class="eyebrow">depth</p>
+    <h2>Rétegszám-összehasonlítás</h2>
+    <details class="help">
+      <summary>Mi ez? Hogyan értsem az ábrát?</summary>
+      <p>
+        A <strong>loss</strong> (pontosabban <em>cross-entropia</em>) megmondja, mennyit
+        hibázott a modell: ha 0, tökéletesen jósolna, ha magas, sokat téved. A görbék
+        a tanulás során jellemzően <strong>csökkennek</strong> — a modell egyre jobban
+        megjósolja, milyen betű jön a következőnek.
+      </p>
+      <p>
+        Három <strong>különböző mélységű</strong> modellt (1/2/4 réteg) látunk ugyanannyi
+        tanulási lépés alatt. Több réteg = a háló „gondolkodási képessége" nagyobb
+        (több elvont mintát tud megragadni), de cserébe több lépés kell neki —
+        különben <em>alultanul</em>, és a görbéje magasan marad.
+      </p>
+      <ul>
+        <li><a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Mi az a cross-entropia? (Wikipedia)</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" target="_blank">Mit jelent a „réteg" a Transformerben?</a></li>
+      </ul>
+    </details>
+    <div id="pnlayer" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">positions</p>
+    <h2>Pozíció-embeddingek PCA-ja</h2>
+    <details class="help">
+      <summary>Mi ez? Hogyan értsem az ábrát?</summary>
+      <p>
+        A modell nem számokban, hanem <strong>vektorokban</strong> gondolkodik: minden
+        pozíciónak (1., 2., …, 16. betűhely) van egy <em>embeddingje</em>, egy
+        n-dimenziós „jelentésvektor". A <strong>PCA</strong> ezeket a (jelen esetben
+        16 dimenziós) vektorokat vetíti le 2 dimenzióra, hogy meglásd a szerkezetet.
+      </p>
+      <p>
+        Ha a pontok <strong>sima ívet vagy hullámot</strong> rajzolnak ki, az azt
+        jelzi, hogy a modell megtanulta a <em>sorrendiség</em> kódolását — hasonlóan a
+        GPT-kben használt szinuszos pozíció-kódoláshoz. Ez kell ahhoz, hogy tudja:
+        a 3. betű más helyzetben van, mint a 8.
+      </p>
+      <ul>
+        <li><a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)#Positional_encoding" target="_blank">Pozíció-kódolás (Wikipedia)</a></li>
+      </ul>
+    </details>
+    <div id="ppca_pos" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">attention</p>
+    <h2>Attention hőtérkép</h2>
+    <details class="help">
+      <summary>Mi ez? Hogyan értsem az ábrát?</summary>
+      <p>
+        Az <strong>attention</strong> a GPT „figyelem-mechanizmusa": segítségével a
+        modell minden betűnél eldönti, <em>melyik korábbi betűre mennyire figyeljen</em>.
+        Például az „a" után már jó eséllyel „n"-t vár — ehhez az előzményekre kell
+        néznie.
+      </p>
+      <p>
+        A hőtérképen a <strong>(sor, oszlop)</strong> cella megmutatja: a sorban lévő
+        betű mennyire figyelt az oszlopban lévőre (sárga = erősen, sötét = alig).
+        A <strong>fejek</strong> (head-ek) párhuzamos „szempontok": mindegyik más
+        mintát keres. Csak a háromszög <strong>bal-alsó fele</strong> világít — ez a
+        <em>kauzális maszk</em>: a modell sosem nézhet a jövőbe, csak az eddig
+        látott betűkre.
+      </p>
+      <ul>
+        <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">The Illustrated Transformer — az attention lépésről lépésre</a></li>
+        <li><a href="https://arxiv.org/abs/1706.03762" target="_blank">Az eredeti „Attention is all you need" cikk</a></li>
+        <li><a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank">3Blue1Brown: attention vizuálisan</a></li>
+      </ul>
+    </details>
+    <div class="row">
+      <input id="att_name" type="text" value="karla">
+      <button onclick="att()" class="ghost">Rajzol</button>
+    </div>
+    <div id="patt" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">next token</p>
+    <h2>Következő betű eloszlása</h2>
+    <details class="help">
+      <summary>Mi ez? Hogyan értsem az ábrát?</summary>
+      <p>
+        A GPT lényegében egy <strong>jósgép</strong>: minden lépésben megmondja, mi a
+        <em>valószínűsége</em> annak, hogy az egyes betűk jönnek a következőként.
+        A modell nyers „pontszámai" (logitek) a <strong>softmax</strong> segítségével
+        válnak valószínűségekké, amik mindig 0 és 1 közé esnek, összegük 1.
+      </p>
+      <p>
+        Ha egy betű kiemelkedően magas (közel 1), a modell <strong>biztos</strong>;
+        ha szétterül, <strong>bizonytalan</strong>. Ebből az eloszlásból „mintavételezve"
+        születik meg minden generált név — és épp ezt finomhangolja a
+        <em>temperature</em>: alacsonyan csak a legvalószínűbbet választja, magasan
+        több kockázatot vállal.
+      </p>
+      <ul>
+        <li><a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Mi az a softmax? (Wikipedia)</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Hogyan működik a nyelvi modell? (Wikipedia)</a></li>
+        <li><a href="https://www.youtube.com/watch?v=kCc8FmEb1nY" target="_blank">Karpathy: „Let's build GPT" — a generálás a gyakorlatban</a></li>
+      </ul>
+    </details>
+    <div class="row">
+      <input id="dist_prefix" type="text" value="ka">
+      <button onclick="dist()" class="ghost">Rajzol</button>
+    </div>
+    <div id="pdist" class="chart"></div>
+  </section>
+
+  <p class="nav"><a href="/">&larr; vissza a főoldalra</a></p>
+
 </div>
-
-<h2>Rétegszám-összehasonlítás</h2>
-<details class="help">
-  <summary>Mi ez? Hogyan értsem az ábrát?</summary>
-  <p>
-    A <strong>loss</strong> (pontosabban <em>cross-entropia</em>) megmondja, mennyit
-    hibázott a modell: ha 0, tökéletesen jósolna, ha magas, sokat téved. A görbék
-    a tanulás során jellemzően <strong>csökkennek</strong> — a modell egyre jobban
-    megjósolja, milyen betű jön a következőnek.
-  </p>
-  <p>
-    Három <strong>különböző mélységű</strong> modellt (1/2/4 réteg) látunk ugyanannyi
-    tanulási lépés alatt. Több réteg = a háló „gondolkodási képessége" nagyobb
-    (több elvont mintát tud megragadni), de cserébe több lépés kell neki —
-    különben <em>alultanul</em>, és a görbéje magasan marad.
-  </p>
-  <ul>
-    <li><a href="https://en.wikipedia.org/wiki/Cross_entropy" target="_blank">Mi az a cross-entropia? (Wikipedia)</a></li>
-    <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)" target="_blank">Mit jelent a „réteg" a Transformerben?</a></li>
-  </ul>
-</details>
-<div id="pnlayer" class="chart"></div>
-
-<h2>Pozíció-embeddingek PCA-ja</h2>
-<details class="help">
-  <summary>Mi ez? Hogyan értsem az ábrát?</summary>
-  <p>
-    A modell nem számokban, hanem <strong>vektorokban</strong> gondolkodik: minden
-    pozíciónak (1., 2., …, 16. betűhely) van egy <em>embeddingje</em>, egy
-    n-dimenziós „jelentésvektor". A <strong>PCA</strong> ezeket a (jelen esetben
-    16 dimenziós) vektorokat vetíti le 2 dimenzióra, hogy meglásd a szerkezetet.
-  </p>
-  <p>
-    Ha a pontok <strong>sima ívet vagy hullámot</strong> rajzolnak ki, az azt
-    jelzi, hogy a modell megtanulta a <em>sorrendiség</em> kódolását — hasonlóan a
-    GPT-kben használt szinuszos pozíció-kódoláshoz. Ez kell ahhoz, hogy tudja:
-    a 3. betű más helyzetben van, mint a 8.
-  </p>
-  <ul>
-    <li><a href="https://en.wikipedia.org/wiki/Principal_component_analysis" target="_blank">Mi az a PCA? (Wikipedia)</a></li>
-    <li><a href="https://en.wikipedia.org/wiki/Word_embedding" target="_blank">Mit jelent az „embedding"? (Wikipedia)</a></li>
-    <li><a href="https://en.wikipedia.org/wiki/Transformer_(deep_learning_architecture)#Positional_encoding" target="_blank">Pozíció-kódolás (Wikipedia)</a></li>
-  </ul>
-</details>
-<div id="ppca_pos" class="chart"></div>
-
-<h2>Attention hőtérkép</h2>
-<details class="help">
-  <summary>Mi ez? Hogyan értsem az ábrát?</summary>
-  <p>
-    Az <strong>attention</strong> a GPT „figyelem-mechanizmusa": segítségével a
-    modell minden betűnél eldönti, <em>melyik korábbi betűre mennyire figyeljen</em>.
-    Például az „a" után már jó eséllyel „n"-t vár — ehhez az előzményekre kell
-    néznie.
-  </p>
-  <p>
-    A hőtérképen a <strong>(sor, oszlop)</strong> cella megmutatja: a sorban lévő
-    betű mennyire figyelt az oszlopban lévőre (sárga = erősen, sötét = alig).
-    A <strong>fejek</strong> (head-ek) párhuzamos „szempontok": mindegyik más
-    mintát keres. Csak a háromszög <strong>bal-alsó fele</strong> világít — ez a
-    <em>kauzális maszk</em>: a modell sosem nézhet a jövőbe, csak az eddig
-    látott betűkre.
-  </p>
-  <ul>
-    <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">The Illustrated Transformer — az attention lépésről lépésre</a></li>
-    <li><a href="https://arxiv.org/abs/1706.03762" target="_blank">Az eredeti „Attention is all you need" cikk</a></li>
-    <li><a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank">3Blue1Brown: attention vizuálisan</a></li>
-  </ul>
-</details>
-<div class="row">
-  <input id="att_name" type="text" value="karla">
-  <button onclick="att()">Rajzol</button>
-</div>
-<div id="patt" class="chart"></div>
-
-<h2>Következő betű eloszlása</h2>
-<details class="help">
-  <summary>Mi ez? Hogyan értsem az ábrát?</summary>
-  <p>
-    A GPT lényegében egy <strong>jósgép</strong>: minden lépésben megmondja, mi a
-    <em>valószínűsége</em> annak, hogy az egyes betűk jönnek a következőként.
-    A modell nyers „pontszámai" (logitek) a <strong>softmax</strong> segítségével
-    válnak valószínűségekké, amik mindig 0 és 1 közé esnek, összegük 1.
-  </p>
-  <p>
-    Ha egy betű kiemelkedően magas (közel 1), a modell <strong>biztos</strong>;
-    ha szétterül, <strong>bizonytalan</strong>. Ebből az eloszlásból „mintavételezve"
-    születik meg minden generált név — és épp ezt finomhangolja a
-    <em>temperature</em>: alacsonyan csak a legvalószínűbbet választja, magasan
-    több kockázatot vállal.
-  </p>
-  <ul>
-    <li><a href="https://en.wikipedia.org/wiki/Softmax_function" target="_blank">Mi az a softmax? (Wikipedia)</a></li>
-    <li><a href="https://en.wikipedia.org/wiki/Language_model" target="_blank">Hogyan működik a nyelvi modell? (Wikipedia)</a></li>
-    <li><a href="https://www.youtube.com/watch?v=kCc8FmEb1nY" target="_blank">Karpathy: „Let's build GPT" — a generálás a gyakorlatban</a></li>
-  </ul>
-</details>
-<div class="row">
-  <input id="dist_prefix" type="text" value="ka">
-  <button onclick="dist()">Rajzol</button>
-</div>
-<div id="pdist" class="chart"></div>
-
 <script src="/viz.js"></script>
 </body>
 </html>
