@@ -4,6 +4,11 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    environment:
+      # A backend portja a konténerben (a docker-compose 8000:8000 kötéséhez
+      # illeszkedik). Ha módosítod, a frontend/nginx.conf proxy_pass-ét is
+      # állítsd át, és a port-leképezést is!
+      MICROGPT_PORT: "8000"
     restart: unless-stopped
     # GPU-átadás (opcionális, nvidia-container-toolkit szükséges):
     #   ha a gépen van NVIDIA GPU és CUDA, távolítsd el a kommentet:

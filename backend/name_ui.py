@@ -16,17 +16,19 @@ elrendezés, a my-little-jpa mintájára). Helyi futtatáskor ez a backend
 szolgálja ki; docker-ben a frontend konténer (nginx) adja ki őket, és a
 API-kéréseket proxy-zza a backendre.
 
-Helyi futtatás:  cd backend && uv run python name_ui.py
-Docker:          docker compose up (ld. README)
+Indítás (NEM nyit böngészőt, csak futtatja a tréninget és a szervert):
+    cd backend && uv run python name_ui.py
+  - a modell a háttérben tanul (ha nincs cache), a szerver mellette indul;
+  - alap port: 9000 (a docker 8000/8080 portjait nem zavarja);
+    felülírható: MICROGPT_PORT=8001 uv run python name_ui.py
+Docker:          docker compose up (ld. README) -> http://localhost:8080
 """
 
 import json
 import os
 import pickle
-import socket
 import threading
 import time
-import webbrowser
 
 import plotly
 import uvicorn
@@ -269,6 +271,7 @@ def get_config():
         'n_layer': microgpt.n_layer, 'n_embd': microgpt.n_embd,
         'n_head': microgpt.n_head, 'block_size': microgpt.block_size,
         'steps': microgpt.num_steps, 'temperature': TEMPERATURE,
+        'backend': microgpt.BACKEND,
         'training': _job['running'],
     })
 
@@ -372,22 +375,12 @@ def plot_distribution(prefix: str = 'ka'):
 
 
 # -----------------------------------------------------------------------------
-# Indítás (helyi): szabad port + böngésző megnyitása
+# Indítás (helyi): fix port (MICROGPT_PORT, alapból 9000 — nem zavarja a docker
+# 8000/8080-as portjait), böngésző-nyitás nélkül; a tréning a háttérben fut.
 # -----------------------------------------------------------------------------
-def _pick_free_port() -> int:
-    """Egy szabad (még lefoglalatlan) TCP portot kér az operációs rendszertől."""
-    sock = socket.socket()
-    sock.bind(('127.0.0.1', 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
 if __name__ == '__main__':
-    _load_cache()  # cache betöltése, vagy háttér-tanítás indítása
-    port = _pick_free_port()
+    _load_cache()  # cache betöltése, vagy háttér-tanítás indítása (a szerver mellette indul)
+    port = int(os.environ.get('MICROGPT_PORT', '9000'))
     url = f'http://127.0.0.1:{port}'
     print(f'open {url} in your browser')
-    # Kis késleltetéssel nyissuk meg a böngészőt, hogy a szerver előbb elinduljon
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host='127.0.0.1', port=port, log_level='warning')

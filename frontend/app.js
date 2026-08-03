@@ -108,7 +108,11 @@ async function loadConfig() {
   document.getElementById('f_steps').value = d.steps;
   document.getElementById('temp').value = d.temperature;
   document.getElementById('tempval').textContent = d.temperature.toFixed(2);
-  if (d.training) pollLive();
+  if (d.training) {
+    pollLive();
+  } else {
+    setStatus('[' + d.backend + '] várakozás — indíts tanítást lentebb…');
+  }
 }
 
 document.getElementById('seed').addEventListener('keydown', e => { if (e.key === 'Enter') doComplete(); });

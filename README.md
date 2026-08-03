@@ -104,7 +104,7 @@ uv sync                          # CPU-s gép / CI: numpy-fallback
 # 2. Tesztek
 uv run pytest
 
-# 3. Indítás (a böngésző automatikusan megnyílik)
+# 3. Indítás (tréning + szerver; nem nyit böngészőt — a 9000-es porton éred el)
 uv run python name_ui.py
 ```
 
@@ -113,19 +113,23 @@ automatikusan letölti** Karpathy names.txt-jét (internet szükséges).
 
 ### GPU-támogatás (CuPy)
 
-A modell **opcionálisan GPU-n tanul** (CuPy, numpy-kompatibilis):
-- **GPU-s gépen** (NVIDIA + CUDA): `cd backend && uv sync --extra gpu`. A modul
-  indításkor felismeri a CUDA-t, és a `microgpt.BACKEND` értéke `'gpu'` lesz —
-  a tréning a videókártyán fut, a kód (kézi forward/backward) változatlan.
-- **CPU-n / CI-n** (nincs cupy vagy CUDA): automatikusan numpy-fallback, a
-  tesztek mindig CPU-n futnak.
+A modell **opcionálisan GPU-n tanulhat** (CuPy, numpy-kompatibilis):
+- **Alapértelmezés: CPU (numpy).** Ez a helyes választás ehhez az apró modellhez —
+  a 16-32 dimenziós matmuloknál a GPU kernel-indítási overheadje miatt a GPU
+  **~20x lassabb** lehet, mint a CPU (mért: n6 e16-nél CPU ~1.5 ms/lépés vs
+  GPU ~29 ms/lépés).
+- **GPU bekapcsolása:** telepítsd a `gpu` extrát
+  (`cd backend && uv sync --extra gpu`), majd állítsd be a környezeti változót:
+  `MICROGPT_BACKEND=gpu` (indítás előtt). A `microgpt.BACKEND` értéke ekkor
+  `'gpu'` lesz, és a tréning a videókártyán fut. Nagyobb modelleknél
+  (pl. `n_embd` 128+ vagy hosszú szekvenciák) a GPU már nyerhet.
+- **Runtime váltás:** `microgpt.set_backend('cpu'|'gpu')` kódból is hívható.
+- **CPU-n / CI-n** (nincs cupy vagy CUDA): automatikusan numpy, a tesztek
+  mindig CPU-n futnak.
 - **Cache-portabilitás:** a `model.pkl` **mindig CPU-numpy** formátumban
   mentődik, így bármely gépen betölthető (GPU nélkül is).
 - **UI/vizualizációk:** a Plotly-ábrák és a PCA CPU-s másolaton készülnek
   (`viz._to_cpu`), a böngészőnek nem kell GPU.
-- Megjegyzés: a toy-modell apró, GPU-n a kernel-felhívási overhead miatt a
-  gyorsulás korlátozott — a GPU elsősorban a **nagyobb/lassabb tréninget**
-  engedi (az alapértelmezés is megnőtt: 6 réteg, 96 000 lépés).
 
 ---
 
@@ -165,10 +169,11 @@ A frontend-konténer az API-kéréseket (`/complete`, `/config`, `/retrain`,
 
 Indítás: `cd backend && uv run python name_ui.py`
 
-- A szerver **véletlenszerű (szabad) porton** indul — a konzol kiírja az URL-t,
-  és a böngésző automatikusan megnyílik.
-- **Első indítás:** ha nincs `model.pkl`, a modell **háttérben** elkezd tanulni a
-  jelenlegi konfigurációval. A felület azonnal elérhető, a tanulás élőben látható.
+- A szerver a **9000-es porton** indul (a konzol kiírja az URL-t), és **nem nyit
+  böngészőt**. Ha nincs `model.pkl`, a modell **háttérben** elkezd tanulni a
+  jelenlegi konfigurációval — a felület azonnal elérhető, a tanulás élőben látható.
+- A port felülírható: `MICROGPT_PORT=8001 uv run python name_ui.py`. A 9000-es
+  default nem ütközik a docker (8000/8080) portjaival.
 
 ### Főoldal részei
 
@@ -306,7 +311,8 @@ a galéria automatikusan újrapróbálja; (2) böngészőkonzol (F12); (3) ellen
 hogy a backend elérhető.
 
 **Melyik porton fut a szerver?**
-Helyben véletlenszerű (a konzol kiírja); dockerben frontend 8080, backend 8000.
+Helyben **9000** (felülírható a `MICROGPT_PORT` környezeti változóval, hogy ne
+ütközzön a docker portjaival); dockerben frontend 8080, backend 8000.
 
 **A modell értelmetlen neveket ad**
 Túl rövid tréning, vagy túl magas `temperature`. Taníts tovább, vagy csökkentsd.
