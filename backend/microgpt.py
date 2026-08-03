@@ -36,6 +36,7 @@ import os  # fájllétezés ellenőrzése (`input.txt`)
 import random  # a dokumentumok összekeverése (shuffle)
 import threading  # a tréningek összehangolása (MODEL_LOCK)
 import time  # a tréning időzítése (benchmark)
+import warnings  # a cupy CUDA-path figyelmeztetésének elnyomása
 
 import numpy as _np  # a vektorizált számolások alapja (CPU)
 
@@ -44,12 +45,16 @@ import numpy as _np  # a vektorizált számolások alapja (CPU)
 # ezért az alapértelmezés mindig CPU. A GPU-t kifejezetten bekapcsolni kell:
 #   export MICROGPT_BACKEND=gpu   (és legyen telepítve a `gpu` extra)
 # Nagyobb modelleknél (pl. n_embd 128+ / hosszú szekvenciák) a GPU már nyerhet.
-try:
-    import cupy as _gpu
-    _GPU_AVAILABLE = bool(_gpu.cuda.is_available())
-except Exception:  # nincs cupy vagy nincs CUDA-driver
-    _gpu = None
-    _GPU_AVAILABLE = False
+with warnings.catch_warnings():
+    # A cupy pip-wheeljei (nvidia-*-cu12) nélkülünk is megtalálják a CUDA-t,
+    # a "CUDA path could not be detected" figyelmeztetés csak zaj lenne.
+    warnings.filterwarnings('ignore', message='CUDA path could not be detected')
+    try:
+        import cupy as _gpu
+        _GPU_AVAILABLE = bool(_gpu.cuda.is_available())
+    except Exception:  # nincs cupy vagy nincs CUDA-driver
+        _gpu = None
+        _GPU_AVAILABLE = False
 
 if _GPU_AVAILABLE and os.environ.get('MICROGPT_BACKEND', '').lower() == 'gpu':
     np = _gpu
