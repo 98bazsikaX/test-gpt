@@ -39,9 +39,11 @@ import time  # a tréning időzítése (benchmark)
 
 import numpy as _np  # a vektorizált számolások alapja (CPU)
 
-# Opcionális GPU-backend (CuPy): ha elérhető, a modell GPU-n tanul, egyébként
-# (pl. CI-n) automatikusan numpy-fallback. A cupy "drop-in" numpy, így a
-# kézi forward/backward kód változatlan marad.
+# Opcionális GPU-backend (CuPy). Fontos: ilyen APRÓ modellnél (16-32 dimenziós
+# matmulok) a GPU a kernel-indítási overhead miatt ~20x LASSABB, mint a CPU,
+# ezért az alapértelmezés mindig CPU. A GPU-t kifejezetten bekapcsolni kell:
+#   export MICROGPT_BACKEND=gpu   (és legyen telepítve a `gpu` extra)
+# Nagyobb modelleknél (pl. n_embd 128+ / hosszú szekvenciák) a GPU már nyerhet.
 try:
     import cupy as _gpu
     _GPU_AVAILABLE = bool(_gpu.cuda.is_available())
@@ -49,8 +51,12 @@ except Exception:  # nincs cupy vagy nincs CUDA-driver
     _gpu = None
     _GPU_AVAILABLE = False
 
-np = _gpu if _GPU_AVAILABLE else _np
-BACKEND = 'gpu' if _GPU_AVAILABLE else 'cpu'
+if _GPU_AVAILABLE and os.environ.get('MICROGPT_BACKEND', '').lower() == 'gpu':
+    np = _gpu
+    BACKEND = 'gpu'
+else:
+    np = _np
+    BACKEND = 'cpu'
 
 
 def set_backend(name):
